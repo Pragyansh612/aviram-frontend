@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useCallback } from "react";
+import Link from "next/link";
 
 const SOURCES = ["Greenhouse","Lever","Ashby","Wellfound","Indeed","LinkedIn","Workday","YC Jobs","Otta","Naukri","SmartRecruiters","BambooHR","Recurse","AngelList","Hacker News","Built In"];
 
@@ -143,10 +144,11 @@ export default function Hero() {
               Aviram finds the openings, scores them by how likely they are to interview you, rewrites your resume for each, and applies. You read the results.
             </p>
             <div className="hero-actions">
-              <button className="btn btn-primary" ref={uploadBtnRef} onClick={handleUpload}>
+              <Link href="/signup" className="btn btn-primary">Get started →</Link>
+              <button className="btn btn-ghost" ref={uploadBtnRef} onClick={handleUpload}>
                 ⬆ Try with a sample resume
               </button>
-              <span className="note" ref={heroNoteRef}>no signup · runs in your browser</span>
+              <span className="note" ref={heroNoteRef}>demo runs in your browser</span>
             </div>
           </div>
 

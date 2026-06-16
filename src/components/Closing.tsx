@@ -1,5 +1,6 @@
 "use client";
 import { useEffect } from "react";
+import Link from "next/link";
 
 export default function Closing() {
   useEffect(() => {
@@ -20,7 +21,7 @@ export default function Closing() {
           </div>
         </div>
         <div className="cta-row reveal d1">
-          <a href="#" className="btn btn-cta" id="ctaBtn">See it find your next job →</a>
+          <Link href="/signup" className="btn btn-cta" id="ctaBtn">See it find your next job →</Link>
           <span className="cta-note">it's already running. point it at your search.</span>
         </div>
       </div>

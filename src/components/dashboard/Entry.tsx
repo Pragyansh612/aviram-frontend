@@ -3,14 +3,16 @@ import { useState, useEffect } from "react";
 import { Icon } from "./icons";
 import { CountUp, useStagger } from "./shared";
 import { USER, BRIEF } from "./data";
+import { getDisplayName } from "./session";
 
 const arrIcon: React.CSSProperties = { width: 14, height: 14, display: "inline-block" };
 
-function ActiveSystem({ onOpen }: { onOpen: () => void }) {
+function ActiveSystem({ onOpen, firstTime }: { onOpen: () => void; firstTime?: boolean }) {
   useEffect(() => {
-    const t = setTimeout(onOpen, 2600);
+    const t = setTimeout(onOpen, firstTime ? 1800 : 2600);
     return () => clearTimeout(t);
-  }, [onOpen]);
+  }, [onOpen, firstTime]);
+
   return (
     <div className="entry-stage">
       <div className="active-system">
@@ -19,8 +21,17 @@ function ActiveSystem({ onOpen }: { onOpen: () => void }) {
             <path d="M12 2 L21 20 H14.5 L12 13.5 L9.5 20 H3 Z" style={{ fill: "var(--accent)" }} />
           </svg>
         </div>
-        <div className="as-line l1">Aviram was active for <b>{USER.activeFor}</b>.</div>
-        <div className="as-line l2">Brief ready.<span className="as-caret" /></div>
+        {firstTime ? (
+          <>
+            <div className="as-line l1">Aviram is <b>starting</b>.</div>
+            <div className="as-line l2">Your workspace is ready.<span className="as-caret" /></div>
+          </>
+        ) : (
+          <>
+            <div className="as-line l1">Aviram was active for <b>{USER.activeFor}</b>.</div>
+            <div className="as-line l2">Brief ready.<span className="as-caret" /></div>
+          </>
+        )}
         <div className="as-cta">
           <button className="btn btn-primary" onClick={onOpen}>
             Open Brief <span className="arr" style={{ width: 15, height: 15, display: "inline-block" }}><Icon name="arrow" /></span>
@@ -31,7 +42,24 @@ function ActiveSystem({ onOpen }: { onOpen: () => void }) {
   );
 }
 
-function BriefLetter({ onEnter, goTo }: { onEnter: () => void; goTo: (p: string) => void }) {
+function BriefLetterFirst({ onEnter, firstName }: { onEnter: () => void; firstName: string }) {
+  return (
+    <div className="brief-letter">
+      <div className="bl-greet">Good morning, <span className="em">{firstName}</span>.</div>
+      <div className="bl-first-msg">
+        Aviram is starting. Your first opportunities will appear within the hour.
+      </div>
+      <div className="bl-rule" />
+      <div className="bl-foot">
+        <button className="btn btn-primary" onClick={onEnter}>
+          Open Command Center <span className="arr" style={arrIcon}><Icon name="arrow" /></span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function BriefLetter({ onEnter, goTo, firstName }: { onEnter: () => void; goTo: (p: string) => void; firstName: string }) {
   const stats = [
     { n: BRIEF.discovered, k: "opportunities discovered" },
     { n: BRIEF.shortlisted, k: "shortlisted by score" },
@@ -41,7 +69,7 @@ function BriefLetter({ onEnter, goTo }: { onEnter: () => void; goTo: (p: string)
   ];
   return (
     <div className="brief-letter">
-      <div className="bl-greet">Good morning, <span className="em">{USER.first}</span>.</div>
+      <div className="bl-greet">Good morning, <span className="em">{firstName}</span>.</div>
       <div className="bl-while">While you were away — {USER.activeFor} of autonomous work.</div>
       <div className="bl-stats">
         {stats.map((s, i) => (
@@ -85,7 +113,47 @@ function BriefLetter({ onEnter, goTo }: { onEnter: () => void; goTo: (p: string)
   );
 }
 
-function BriefTerminal({ onEnter, goTo }: { onEnter: () => void; goTo: (p: string) => void }) {
+function BriefTerminalFirst({ onEnter, firstName }: { onEnter: () => void; firstName: string }) {
+  const rows = [
+    { tk: "00:01", tx: "profile loaded · preferences saved" },
+    { tk: "00:04", tx: "resume parsed · archetype: mid_backend" },
+    { tk: "00:08", tx: "calibration started · 0 / 25 signals" },
+    { tk: "00:12", tx: "discovery queued · first scan in progress" },
+  ];
+  const shown = useStagger(rows.length, true, 160, 400);
+  return (
+    <div className="brief-term">
+      <div className="bt-window">
+        <div className="bt-head">
+          <span className="dots"><i /><i /><i /></span>
+          <span className="ttl">aviram · first session</span>
+          <span className="live"><span className="dot" /> starting</span>
+        </div>
+        <div className="bt-body">
+          <div className="bt-prompt"><span className="usr">aviram@mid_backend</span>:<span className="cmd">~$</span> status</div>
+          <div className="bt-greet">Good morning, {firstName}.</div>
+          <div className="bt-sub">Aviram is starting. Your first opportunities will appear within the hour.</div>
+          <div className="bt-feed">
+            {rows.map((r, i) => (
+              <div className={"bt-row" + (i < shown ? " in" : "")} key={i}>
+                <span className="tk">{r.tk}</span>
+                <span className="mk">✓</span>
+                <span className="tx">{r.tx}</span>
+              </div>
+            ))}
+          </div>
+          <div className="bt-foot">
+            <span className="bt-prompt"><span className="usr">aviram</span>:<span className="cmd">~$</span> <span className="cur">█</span></span>
+            <span style={{ flex: 1 }} />
+            <button className="btn btn-primary btn-sm" onClick={onEnter}>Open Command Center →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BriefTerminal({ onEnter, goTo, firstName }: { onEnter: () => void; goTo: (p: string) => void; firstName: string }) {
   const rows = [
     { tk: "22:48", n: BRIEF.discovered, tx: "opportunities discovered across 16 sources" },
     { tk: "23:31", n: BRIEF.shortlisted, tx: "shortlisted above your IPS threshold" },
@@ -105,7 +173,7 @@ function BriefTerminal({ onEnter, goTo }: { onEnter: () => void; goTo: (p: strin
         </div>
         <div className="bt-body">
           <div className="bt-prompt"><span className="usr">aviram@{USER.archetype}</span>:<span className="cmd">~$</span> summary --since last-login</div>
-          <div className="bt-greet">Good morning, {USER.first}.</div>
+          <div className="bt-greet">Good morning, {firstName}.</div>
           <div className="bt-sub">{USER.activeFor} active · 16 sources · {BRIEF.discovered} found · {BRIEF.submitted} applied · {BRIEF.interview} interview</div>
           <div className="bt-feed">
             {rows.map((r, i) => (
@@ -147,18 +215,29 @@ function BriefTerminal({ onEnter, goTo }: { onEnter: () => void; goTo: (p: strin
   );
 }
 
-export default function Entry({ onEnter, goTo }: { onEnter: () => void; goTo: (p: string) => void }) {
+export default function Entry({
+  onEnter,
+  goTo,
+  firstTime = false,
+}: {
+  onEnter: () => void;
+  goTo: (p: string) => void;
+  firstTime?: boolean;
+}) {
   const [stage, setStage] = useState<"active" | "brief">("active");
   const [variant, setVariant] = useState<"letter" | "terminal">(() => {
     try { return (localStorage.getItem("aviram-brief-variant") as "letter" | "terminal") || "letter"; } catch { return "letter"; }
   });
+  const firstName = getDisplayName();
 
   const pick = (v: "letter" | "terminal") => {
     setVariant(v);
     try { localStorage.setItem("aviram-brief-variant", v); } catch {}
   };
 
-  if (stage === "active") return <ActiveSystem onOpen={() => setStage("brief")} />;
+  if (stage === "active") {
+    return <ActiveSystem onOpen={() => setStage("brief")} firstTime={firstTime} />;
+  }
 
   return (
     <div className="brief-stage">
@@ -168,16 +247,24 @@ export default function Entry({ onEnter, goTo }: { onEnter: () => void; goTo: (p
         </span>
         <span className="bt-name">Aviram</span>
         <span className="spacer" />
-        <div className="variant-switch">
-          <button className={variant === "letter" ? "on" : ""} onClick={() => pick("letter")}>A · LETTER</button>
-          <button className={variant === "terminal" ? "on" : ""} onClick={() => pick("terminal")}>B · TERMINAL</button>
-        </div>
-        <button className="btn btn-quiet btn-sm" onClick={onEnter} style={{ marginLeft: 4 }}>Skip →</button>
+        {!firstTime && (
+          <div className="variant-switch">
+            <button type="button" className={variant === "letter" ? "on" : ""} onClick={() => pick("letter")}>A · LETTER</button>
+            <button type="button" className={variant === "terminal" ? "on" : ""} onClick={() => pick("terminal")}>B · TERMINAL</button>
+          </div>
+        )}
+        <button type="button" className="btn btn-quiet btn-sm" onClick={onEnter} style={{ marginLeft: 4 }}>Skip →</button>
       </div>
       <div className="brief-scroll">
-        {variant === "letter"
-          ? <BriefLetter onEnter={onEnter} goTo={goTo} />
-          : <BriefTerminal onEnter={onEnter} goTo={goTo} />}
+        {firstTime ? (
+          variant === "letter"
+            ? <BriefLetterFirst onEnter={onEnter} firstName={firstName} />
+            : <BriefTerminalFirst onEnter={onEnter} firstName={firstName} />
+        ) : variant === "letter" ? (
+          <BriefLetter onEnter={onEnter} goTo={goTo} firstName={firstName} />
+        ) : (
+          <BriefTerminal onEnter={onEnter} goTo={goTo} firstName={firstName} />
+        )}
       </div>
     </div>
   );

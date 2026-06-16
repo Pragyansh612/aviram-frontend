@@ -1,10 +1,19 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Sidebar, MobileTabBar } from "./shared";
 import Entry from "./Entry";
 import DetailPanel from "./DetailPanel";
 import type { Opp } from "./DetailPanel";
-import { isBriefSeen, markBriefSeen } from "./session";
+import {
+  clearFirstTimeBrief,
+  getStoredProfile,
+  isAuthed,
+  isBriefSeen,
+  isFirstTimeBrief,
+  isOnboardingComplete,
+  markBriefSeen,
+} from "./session";
 import type { PageId } from "./shared";
 import CommandCenter from "./pages/CommandCenter";
 import Timeline from "./pages/Timeline";
@@ -34,7 +43,15 @@ function useTheme() {
   return [theme, () => setTheme((t) => (t === "light" ? "dark" : "light"))] as const;
 }
 
+function avatarInitial(): string {
+  const name = getStoredProfile()?.name?.trim();
+  return name ? name[0]!.toUpperCase() : "P";
+}
+
 export default function DashboardApp() {
+  const router = useRouter();
+  const [ready, setReady] = useState(false);
+  const [firstTime] = useState(() => isFirstTimeBrief());
   const [stage, setStage] = useState<"entry" | "app">(() => (isBriefSeen() ? "app" : "entry"));
   const [page, setPage] = useState<PageId>("command");
   const [theme, toggleTheme] = useTheme();
@@ -42,21 +59,36 @@ export default function DashboardApp() {
   const [opp, setOpp] = useState<Opp | null>(null);
 
   useEffect(() => {
+    if (!isAuthed()) {
+      router.replace("/login");
+      return;
+    }
+    if (!isOnboardingComplete()) {
+      router.replace("/onboarding");
+      return;
+    }
+    setReady(true);
+  }, [router]);
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpp(null); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const enterApp = () => {
+  const finishBrief = () => {
     markBriefSeen();
+    if (firstTime) clearFirstTimeBrief();
     setStage("app");
   };
 
   const navigate = (p: PageId) => { setPage(p); setOpp(null); };
-  const goTo = (p: string) => { markBriefSeen(); setStage("app"); navigate(p as PageId); };
+  const goTo = (p: string) => { finishBrief(); navigate(p as PageId); };
+
+  if (!ready) return null;
 
   if (stage === "entry") {
-    return <Entry onEnter={enterApp} goTo={goTo} />;
+    return <Entry onEnter={finishBrief} goTo={goTo} firstTime={firstTime} />;
   }
 
   let content: React.ReactNode;
@@ -88,7 +120,7 @@ export default function DashboardApp() {
           <span className="crumb">Aviram · <b>{PAGE_TITLE[page]}</b></span>
           <span className="spacer" />
           <span className="clock">{running ? "● live" : "❚❚ paused"}</span>
-          <span className="avatar">P</span>
+          <span className="avatar">{avatarInitial()}</span>
         </div>
         {content}
       </div>

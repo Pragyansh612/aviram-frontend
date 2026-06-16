@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 
 export default function Topbar() {
   const ref = useRef<HTMLElement>(null);
@@ -50,9 +51,10 @@ export default function Topbar() {
           </svg>
         </button>
         <button className="btn btn-ghost btn-sm" onClick={handleReplay}>↻ Replay scan</button>
-        <a href="#cta" className="btn btn-primary btn-sm">
-          See it find your next job <span className="arr">→</span>
-        </a>
+        <Link href="/login" className="btn btn-ghost btn-sm">Sign in</Link>
+        <Link href="/signup" className="btn btn-primary btn-sm">
+          Get started <span className="arr">→</span>
+        </Link>
       </div>
     </header>
   );

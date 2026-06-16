@@ -812,6 +812,7 @@ section { position: relative; }
 .bl-action .ba-title { font-size: 16px; font-weight: 500; color: var(--ink); letter-spacing: -0.01em; }
 .bl-action .ba-meta { font-size: 13px; color: var(--ink-3); margin-top: 3px; }
 .bl-foot { text-align: center; padding: 8px 0 10px; }
+.bl-first-msg { font-family: var(--serif); font-size: clamp(22px, 3vw, 28px); line-height: 1.35; letter-spacing: -0.015em; color: var(--ink-2); max-width: 28ch; margin: 20px 0 8px; }
 
 .brief-term { width: min(760px, 94vw); padding: 18px 0 0; }
 .bt-window { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-lg); overflow: hidden; }
@@ -1134,6 +1135,66 @@ section { position: relative; }
 .arch-block .ab-name { font-family: var(--serif); font-size: 26px; letter-spacing: -0.01em; margin-bottom: 6px; }
 .arch-block .ab-name span { color: var(--accent); }
 .arch-block .ab-desc { font-size: 13.5px; color: var(--ink-3); line-height: 1.55; margin-bottom: 16px; max-width: 60ch; }
+
+/* ============================================================
+   AUTH + ONBOARDING
+   ============================================================ */
+.auth-page, .onboard-page {
+  min-height: 100vh; display: grid; place-items: center; padding: 40px 20px;
+  background: var(--cream); position: relative; z-index: 1;
+}
+.auth-card, .onboard-card {
+  width: min(420px, 94vw); background: var(--paper); border: 1px solid var(--line);
+  border-radius: 14px; box-shadow: var(--shadow-md); padding: 32px 34px 28px;
+}
+.onboard-card { width: min(520px, 94vw); padding: 28px 32px 24px; }
+.auth-brand { display: inline-flex; align-items: center; gap: 9px; margin-bottom: 28px; color: inherit; }
+.auth-brand .glyph { width: 20px; height: 20px; display: block; }
+.auth-brand .name { font-family: var(--serif); font-size: 22px; line-height: 1; }
+.auth-title { font-size: clamp(28px, 4vw, 34px); line-height: 1.12; letter-spacing: -0.02em; margin-bottom: 26px; color: var(--ink); }
+.auth-form { display: flex; flex-direction: column; gap: 16px; }
+.auth-field { display: flex; flex-direction: column; gap: 7px; }
+.auth-label { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); font-weight: 500; }
+.auth-input {
+  font-family: var(--sans); font-size: 15px; color: var(--ink); background: var(--cream);
+  border: 1px solid var(--line); border-radius: 9px; padding: 11px 13px; outline: none;
+  transition: border-color .18s var(--ease), box-shadow .18s var(--ease);
+}
+.auth-input:focus { border-color: var(--accent-edge); box-shadow: 0 0 0 3px var(--accent-tint); }
+.auth-submit { width: 100%; justify-content: center; margin-top: 6px; padding: 12px 16px; font-size: var(--fs-body); }
+.auth-foot { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line-soft); font-size: 13.5px; color: var(--ink-3); text-align: center; }
+.auth-foot a { color: var(--accent); font-weight: 500; }
+[data-theme="dark"] .auth-foot a { color: var(--accent-2); }
+
+.onboard-head { margin-bottom: 28px; }
+.onboard-progress { margin-top: 18px; }
+.onboard-progress-bar { height: 4px; border-radius: 3px; background: var(--cream-deep); overflow: hidden; margin-bottom: 8px; }
+.onboard-progress-bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; transition: width .35s var(--ease-out); }
+.onboard-step-label { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.06em; color: var(--ink-4); text-transform: uppercase; }
+.onboard-body { min-height: 260px; }
+.onboard-title { font-size: clamp(26px, 3.6vw, 32px); line-height: 1.14; letter-spacing: -0.02em; margin-bottom: 18px; }
+.onboard-lede { font-size: 15px; color: var(--ink-3); line-height: 1.55; max-width: 46ch; }
+.onboard-lede b { color: var(--ink); font-weight: 600; }
+.onboard-foot { display: flex; align-items: center; gap: 10px; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line-soft); }
+.onboard-foot .spacer { flex: 1; }
+
+.resume-drop {
+  width: 100%; margin-top: 8px; padding: 28px 22px; border-radius: 12px;
+  border: 1.5px dashed var(--line-strong); background: var(--cream); cursor: pointer;
+  text-align: center; transition: border-color .2s, background .2s;
+  display: flex; flex-direction: column; gap: 6px; align-items: center;
+}
+.resume-drop:hover { border-color: var(--accent-edge); background: var(--accent-tint); }
+.resume-drop.has-file { border-style: solid; border-color: var(--accent-edge); background: var(--accent-tint); }
+.resume-drop-cta { font-size: 15px; font-weight: 500; color: var(--ink-2); }
+.resume-drop-name { font-family: var(--mono); font-size: 14px; font-weight: 600; color: var(--accent); }
+.resume-drop-meta { font-family: var(--mono); font-size: 11px; color: var(--ink-4); }
+
+.archetype-card { margin-top: 8px; padding: 22px 24px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper-2); }
+.arch-tag { font-size: 11px; color: var(--accent); font-weight: 600; letter-spacing: 0.04em; margin-bottom: 10px; }
+.arch-name { font-size: 26px; letter-spacing: -0.015em; margin-bottom: 12px; line-height: 1.15; }
+.arch-desc { font-size: 14px; color: var(--ink-3); line-height: 1.6; }
+.calib-preview { margin-top: 22px; max-width: 360px; }
 
 /* ============================================================
    MOBILE TAB BAR (dashboard)
