@@ -884,6 +884,7 @@ section { position: relative; }
 .aq-card.type-interview .aq-type { color: var(--accent); }
 .aq-card.type-referral .aq-type { color: var(--clay); }
 .aq-card.type-manual .aq-type { color: var(--skip); }
+.aq-card.type-insight .aq-type { color: var(--ink-4); }
 .aq-kicker { font-family: var(--mono); font-size: 11px; letter-spacing: 0.03em; color: var(--ink-3); margin-bottom: 5px; }
 .aq-title { font-size: 16px; font-weight: 500; letter-spacing: -0.01em; }
 .aq-meta { font-size: 13px; color: var(--ink-3); margin-top: 3px; font-family: var(--mono); }
@@ -1002,7 +1003,9 @@ section { position: relative; }
 .ae-events { list-style: none; display: flex; flex-direction: column; gap: 8px; }
 .ae-events li { font-size: 13px; color: var(--ink-2); display: flex; gap: 12px; }
 .ae-time { font-family: var(--mono); font-size: 11px; color: var(--ink-4); min-width: 88px; flex: none; }
-.ae-act { display: flex; gap: 10px; padding-top: 4px; border-top: 1px solid var(--line-soft); }
+.ae-act { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; padding-top: 4px; border-top: 1px solid var(--line-soft); }
+.ae-outcome-pick { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ae-saved { font-family: var(--mono); font-size: 12px; color: var(--accent); }
 
 /* ============================================================
    RESUME LAB (dashboard)

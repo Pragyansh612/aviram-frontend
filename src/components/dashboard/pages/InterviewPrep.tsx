@@ -158,7 +158,7 @@ export default function InterviewPrep() {
       </div>
       <div className="card">
         {filteredQuestions.length === 0 ? (
-          <p className="empty-line">No questions in this category.</p>
+          <EmptyState>No questions in this category.</EmptyState>
         ) : filteredQuestions.map((q, i) => (
           <div key={i} className="dp-kv" style={{ padding: "14px 18px", borderBottom: i < filteredQuestions.length - 1 ? "1px solid var(--line-soft)" : "none" }}>
             <span className="k" style={{ fontSize: 13.5, color: "var(--ink-2)" }}>{q.q}</span>

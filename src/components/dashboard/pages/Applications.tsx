@@ -1,8 +1,9 @@
 "use client";
 import { useState } from "react";
-import { APPS } from "@/components/dashboard/data";
+import { APPS, OPPS } from "@/components/dashboard/data";
 import { IPSChip, StatusPill, PageHead, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
+import type { Opp } from "@/components/dashboard/DetailPanel";
 
 const APP_TABS = [
   { id: "all", label: "All" }, { id: "applied", label: "In Progress" },
@@ -10,9 +11,18 @@ const APP_TABS = [
   { id: "closed", label: "Closed" },
 ];
 
-export default function Applications() {
+const OUTCOME_OPTIONS = ["Interview scheduled", "Offer received", "Rejected", "Withdrawn"] as const;
+
+function findOppForApp(app: typeof APPS[0]): Opp | undefined {
+  return OPPS.find((o) => o.company === app.company && o.role === app.role)
+    ?? OPPS.find((o) => o.company === app.company);
+}
+
+export default function Applications({ openOpp }: { openOpp?: (o: Opp) => void }) {
   const [tab, setTab] = useState("all");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [outcomeFor, setOutcomeFor] = useState<string | null>(null);
+  const [outcomeSaved, setOutcomeSaved] = useState<Record<string, string>>({});
 
   const match = (a: typeof APPS[0]) => {
     switch (tab) {
@@ -32,7 +42,14 @@ export default function Applications() {
     closed: APPS.filter(a => ["rejected","offer","withdrawn"].includes(a.status)).length,
   };
 
-  const toggle = (id: string) => setExpanded(expanded === id ? null : id);
+  const toggle = (id: string) => {
+    setExpanded(expanded === id ? null : id);
+    setOutcomeFor(null);
+  };
+
+  const emptyMessage = APPS.length === 0
+    ? "No applications yet."
+    : "No applications match this filter.";
 
   return (
     <div className="page">
@@ -50,7 +67,7 @@ export default function Applications() {
       </div>
       <div className="apps-table">
         {list.length === 0 ? (
-          <EmptyState>No applications yet.</EmptyState>
+          <EmptyState>{emptyMessage}</EmptyState>
         ) : (
         <>
         <div className="apps-colhead">
@@ -60,6 +77,7 @@ export default function Applications() {
         {list.map((a) => {
           const isOpen = expanded === a.id;
           const withdrawn = a.status === "withdrawn";
+          const linkedOpp = findOppForApp(a);
           return (
             <div key={a.id} className={"apps-block" + (isOpen ? " open" : "")}>
               <div
@@ -97,8 +115,34 @@ export default function Applications() {
                     </ul>
                   </div>
                   <div className="ae-act">
-                    <button type="button" className="btn btn-ghost btn-sm">Update outcome</button>
-                    <button type="button" className="btn btn-quiet btn-sm">View full detail →</button>
+                    {outcomeSaved[a.id] ? (
+                      <span className="ae-saved">Outcome recorded · {outcomeSaved[a.id]}</span>
+                    ) : outcomeFor === a.id ? (
+                      <div className="ae-outcome-pick">
+                        {OUTCOME_OPTIONS.map((o) => (
+                          <button
+                            key={o}
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => { setOutcomeSaved((s) => ({ ...s, [a.id]: o })); setOutcomeFor(null); }}
+                          >
+                            {o}
+                          </button>
+                        ))}
+                        <button type="button" className="btn btn-quiet btn-sm" onClick={() => setOutcomeFor(null)}>Cancel</button>
+                      </div>
+                    ) : (
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOutcomeFor(a.id)}>Update outcome</button>
+                    )}
+                    {linkedOpp && openOpp && (
+                      <button
+                        type="button"
+                        className="btn btn-quiet btn-sm"
+                        onClick={() => openOpp(linkedOpp)}
+                      >
+                        View full detail →
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

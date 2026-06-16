@@ -105,7 +105,7 @@ export default function DashboardApp() {
     case "command":       content = <CommandCenter goTo={navigate} openOpp={openOpp} />; break;
     case "timeline":      content = <Timeline goTo={navigate} />; break;
     case "opportunities": content = <Opportunities openOpp={openOpp} selectedId={opp?.id} />; break;
-    case "applications":  content = <Applications />; break;
+    case "applications":  content = <Applications openOpp={openOpp} />; break;
     case "resume":        content = <ResumeLab />; break;
     case "intelligence":  content = <CareerIntelligence />; break;
     case "vault":         content = <ResearchVault />; break;

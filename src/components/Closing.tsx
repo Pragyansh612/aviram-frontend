@@ -22,6 +22,7 @@ export default function Closing() {
         </div>
         <div className="cta-row reveal d1">
           <Link href="/signup" className="btn btn-cta" id="ctaBtn">See it find your next job →</Link>
+          <Link href="/login" className="btn btn-ghost btn-sm" style={{ marginLeft: 12 }}>Sign in</Link>
           <span className="cta-note">it's already running. point it at your search.</span>
         </div>
       </div>

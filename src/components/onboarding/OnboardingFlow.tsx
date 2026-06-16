@@ -38,7 +38,7 @@ export default function OnboardingFlow() {
   const [resumeName, setResumeName] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isAuthed()) router.replace("/signup");
+    if (!isAuthed()) router.replace("/login");
     else if (isOnboardingComplete()) router.replace("/dashboard");
   }, [router]);
 

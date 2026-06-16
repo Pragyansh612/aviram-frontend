@@ -1,14 +1,29 @@
 "use client";
 import { useState } from "react";
 import { RESUME } from "@/components/dashboard/data";
-import { PageHead } from "@/components/dashboard/shared";
+import { PageHead, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 
 export default function ResumeLab() {
-  const defaultVariant = RESUME.variants.find(v => v.isDefault)!;
-  const [active, setActive] = useState(defaultVariant.id);
+  const variants = RESUME.variants;
+  const defaultVariant = variants.find(v => v.isDefault) ?? variants[0];
+  const [active, setActive] = useState(defaultVariant?.id ?? "");
   const [compare, setCompare] = useState(false);
-  const preview = RESUME.variants.find(v => v.id === active)!;
+
+  if (variants.length === 0) {
+    return (
+      <div className="page">
+        <PageHead
+          eyebrow={<><span style={{ width: 13, height: 13, display: "inline-block" }}><Icon name="resume" /></span> Resume Lab</>}
+          title="A workspace, not a settings page."
+          sub="Aviram keeps several versions of your resume in play, measures which one actually gets replies, and promotes the winner."
+        />
+        <EmptyState>No resume versions yet. Upload one to get started.</EmptyState>
+      </div>
+    );
+  }
+
+  const preview = variants.find(v => v.id === active)!;
 
   return (
     <div className="page">
@@ -50,7 +65,7 @@ export default function ResumeLab() {
 
       {compare && (
         <div className="compare-grid">
-          {RESUME.variants.map((v) => (
+          {variants.map((v) => (
             <div className={"compare-col" + (v.isDefault ? " winner" : "")} key={v.id}>
               <div className="cmp-head">
                 <span className="cmp-name">{v.name}</span>
@@ -71,7 +86,7 @@ export default function ResumeLab() {
       <div className="lab-grid" style={{ marginTop: 28 }}>
         <div>
           <div className="sec-label">Versions in play <span className="ln" /></div>
-          {RESUME.variants.map((v) => (
+          {variants.map((v) => (
             <div className={"variant-card" + (active === v.id ? " active" : "")} key={v.id} onClick={() => setActive(v.id)} style={{ cursor: "pointer" }} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter") setActive(v.id); }}>
               <div className="vc-head">
                 <span className="vc-name">{v.name}</span>

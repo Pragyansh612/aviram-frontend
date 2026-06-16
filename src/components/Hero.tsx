@@ -145,6 +145,7 @@ export default function Hero() {
             </p>
             <div className="hero-actions">
               <Link href="/signup" className="btn btn-primary">Get started →</Link>
+              <Link href="/login" className="btn btn-ghost">Sign in</Link>
               <button className="btn btn-ghost" ref={uploadBtnRef} onClick={handleUpload}>
                 ⬆ Try with a sample resume
               </button>

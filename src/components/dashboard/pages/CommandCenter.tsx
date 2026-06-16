@@ -44,6 +44,15 @@ const ACTION_ITEMS: {
     to: "applications",
     primary: false,
   },
+  {
+    type: "insight",
+    kicker: "Pattern detected",
+    title: "Series A fintech · 22% interview rate",
+    meta: "Aviram is weighting your queue toward this segment",
+    btn: "View intel",
+    to: "intelligence",
+    primary: false,
+  },
 ];
 
 export default function CommandCenter({ goTo, openOpp }: {
@@ -81,7 +90,7 @@ export default function CommandCenter({ goTo, openOpp }: {
           )}
           <div className="aq-list">
             {actions.length === 0 ? (
-              <p className="empty-line">Nothing needs you right now. Aviram is handling it.</p>
+              <EmptyState>Nothing needs you right now. Aviram is handling it.</EmptyState>
             ) : (
               actions.map((a, i) => (
                 <div className={"aq-card type-" + a.type} key={i}>
