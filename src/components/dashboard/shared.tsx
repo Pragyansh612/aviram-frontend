@@ -134,11 +134,11 @@ export function useStagger(count: number, active = true, step = 70, base = 80) {
 }
 
 // ---------- sidebar nav ----------
-export const NAV_ITEMS: { id?: PageId; label?: string; icon?: string; badge?: number; div?: boolean }[] = [
+export const NAV_ITEMS: { id?: PageId; label?: string; icon?: string; div?: boolean }[] = [
   { id: "command",      label: "Command Center",    icon: "command" },
   { id: "timeline",     label: "Timeline",          icon: "timeline" },
   { div: true },
-  { id: "opportunities",label: "Opportunities",     icon: "opportunities", badge: 47 },
+  { id: "opportunities",label: "Opportunities",     icon: "opportunities" },
   { id: "applications", label: "Applications",      icon: "applications" },
   { div: true },
   { id: "resume",       label: "Resume Lab",        icon: "resume" },
@@ -146,17 +146,47 @@ export const NAV_ITEMS: { id?: PageId; label?: string; icon?: string; badge?: nu
   { id: "intelligence", label: "Career Intelligence", icon: "intelligence" },
   { id: "vault",        label: "Research Vault",    icon: "vault" },
   { div: true },
-  { id: "outreach",     label: "Outreach",          icon: "outreach", badge: 2 },
+  { id: "outreach",     label: "Outreach",          icon: "outreach" },
   { id: "prep",         label: "Interview Prep",    icon: "prep" },
   { div: true },
   { id: "settings",     label: "Settings",          icon: "settings" },
 ];
 
-export function Sidebar({ page, setPage, running, toggleRunning }: {
+export const MOBILE_TABS: { id: PageId; label: string; icon: string }[] = [
+  { id: "command",       label: "Command",  icon: "command" },
+  { id: "timeline",      label: "Timeline", icon: "timeline" },
+  { id: "opportunities", label: "Queue",    icon: "opportunities" },
+  { id: "prep",          label: "Prep",     icon: "prep" },
+  { id: "settings",      label: "Settings", icon: "settings" },
+];
+
+function ThemeToggle({ onClick }: { onClick: () => void }) {
+  return (
+    <button className="theme-toggle sb-theme" onClick={onClick} title="Toggle light / dark" aria-label="Toggle theme">
+      <svg className="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z" />
+      </svg>
+      <svg className="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+      </svg>
+    </button>
+  );
+}
+
+export function Sidebar({ page, setPage, running, toggleRunning, toggleTheme }: {
   page: PageId; setPage: (p: PageId) => void;
   running: boolean; toggleRunning: () => void;
+  toggleTheme: () => void;
 }) {
+  const [confirmPause, setConfirmPause] = useState(false);
   const u = { archetype: "mid_backend", calibration: 14, calibrationMax: 25 };
+
+  const handleStatusClick = () => {
+    if (running) setConfirmPause(true);
+    else { setConfirmPause(false); toggleRunning(); }
+  };
+
   return (
     <aside className="sidebar">
       <div className="sb-brand">
@@ -175,12 +205,12 @@ export function Sidebar({ page, setPage, running, toggleRunning }: {
             : (
               <button
                 key={item.id}
+                type="button"
                 className={"nav-item" + (page === item.id ? " active" : "")}
                 onClick={() => item.id && setPage(item.id)}
               >
                 <span className="ico"><Icon name={item.icon!} /></span>
                 <span>{item.label}</span>
-                {item.badge ? <span className="badge-n">{item.badge}</span> : null}
               </button>
             )
         )}
@@ -193,16 +223,48 @@ export function Sidebar({ page, setPage, running, toggleRunning }: {
           </div>
           <div className="bar"><i style={{ width: (u.calibration / u.calibrationMax * 100) + "%" }} /></div>
         </div>
+        {confirmPause && (
+          <div className="status-confirm">
+            <p className="sc-msg">Pause Aviram? Applications will stop.</p>
+            <div className="sc-act">
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => { toggleRunning(); setConfirmPause(false); }}>Confirm</button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmPause(false)}>Cancel</button>
+            </div>
+          </div>
+        )}
         <button
+          type="button"
           className={"status-pill " + (running ? "running" : "paused")}
-          onClick={toggleRunning}
-          title="Toggle Aviram active / paused"
+          onClick={handleStatusClick}
+          title={running ? "Pause Aviram" : "Resume Aviram"}
         >
           <span className="dot" />
           <span className="st-label">{running ? "Running" : "Paused"}</span>
           <span className="st-meta">{running ? "active" : "click to resume"}</span>
         </button>
+        <div className="sb-foot-row">
+          <ThemeToggle onClick={toggleTheme} />
+        </div>
       </div>
     </aside>
+  );
+}
+
+export function MobileTabBar({ page, setPage }: { page: PageId; setPage: (p: PageId) => void }) {
+  return (
+    <nav className="mobile-tabs" aria-label="Main navigation">
+      {MOBILE_TABS.map((tab) => (
+        <button
+          key={tab.id}
+          type="button"
+          className={"mtab" + (page === tab.id ? " active" : "")}
+          onClick={() => setPage(tab.id)}
+          aria-current={page === tab.id ? "page" : undefined}
+        >
+          <span className="mtab-ico"><Icon name={tab.icon} /></span>
+          <span className="mtab-lbl">{tab.label}</span>
+        </button>
+      ))}
+    </nav>
   );
 }

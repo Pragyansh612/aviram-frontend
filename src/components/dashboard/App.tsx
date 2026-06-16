@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Sidebar } from "./shared";
-import { Icon } from "./icons";
+import { Sidebar, MobileTabBar } from "./shared";
 import Entry from "./Entry";
 import DetailPanel from "./DetailPanel";
 import type { Opp } from "./DetailPanel";
@@ -77,25 +76,23 @@ export default function DashboardApp() {
 
   return (
     <div className="app">
-      <Sidebar page={page} setPage={navigate} running={running} toggleRunning={() => setRunning(r => !r)} />
+      <Sidebar
+        page={page}
+        setPage={navigate}
+        running={running}
+        toggleRunning={() => setRunning(r => !r)}
+        toggleTheme={toggleTheme}
+      />
       <div className="main">
         <div className="topbar2">
           <span className="crumb">Aviram · <b>{PAGE_TITLE[page]}</b></span>
           <span className="spacer" />
           <span className="clock">{running ? "● live" : "❚❚ paused"}</span>
-          <button className="icon-btn theme-toggle" onClick={toggleTheme} title="Toggle light / dark" aria-label="Toggle theme">
-            <svg className="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z" />
-            </svg>
-            <svg className="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="4" />
-              <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
-            </svg>
-          </button>
           <span className="avatar">P</span>
         </div>
         {content}
       </div>
+      <MobileTabBar page={page} setPage={navigate} />
       {opp && <DetailPanel opp={opp} onClose={() => setOpp(null)} />}
     </div>
   );
