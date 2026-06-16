@@ -3,6 +3,9 @@ import { useState, useEffect } from "react";
 import { Sidebar } from "./shared";
 import { Icon } from "./icons";
 import Entry from "./Entry";
+import DetailPanel from "./DetailPanel";
+import type { Opp } from "./DetailPanel";
+import { isBriefSeen, markBriefSeen } from "./session";
 import type { PageId } from "./shared";
 import CommandCenter from "./pages/CommandCenter";
 import Timeline from "./pages/Timeline";
@@ -14,7 +17,6 @@ import ResearchVault from "./pages/ResearchVault";
 import Outreach from "./pages/Outreach";
 import InterviewPrep from "./pages/InterviewPrep";
 import Settings from "./pages/Settings";
-import type { OPPS } from "./data";
 
 const PAGE_TITLE: Record<PageId, string> = {
   command: "Command Center", timeline: "Timeline", opportunities: "Opportunities",
@@ -34,24 +36,28 @@ function useTheme() {
 }
 
 export default function DashboardApp() {
-  const [stage, setStage] = useState<"entry" | "app">("entry");
+  const [stage, setStage] = useState<"entry" | "app">(() => (isBriefSeen() ? "app" : "entry"));
   const [page, setPage] = useState<PageId>("command");
   const [theme, toggleTheme] = useTheme();
   const [running, setRunning] = useState(true);
-  const [opp, setOpp] = useState<typeof OPPS[0] | null>(null);
+  const [opp, setOpp] = useState<Opp | null>(null);
 
-  // Close detail on Escape
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpp(null); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  const enterApp = () => {
+    markBriefSeen();
+    setStage("app");
+  };
+
   const navigate = (p: PageId) => { setPage(p); setOpp(null); };
-  const goTo = (p: string) => { setStage("app"); navigate(p as PageId); };
+  const goTo = (p: string) => { markBriefSeen(); setStage("app"); navigate(p as PageId); };
 
   if (stage === "entry") {
-    return <Entry onEnter={() => setStage("app")} goTo={goTo} />;
+    return <Entry onEnter={enterApp} goTo={goTo} />;
   }
 
   let content: React.ReactNode;
@@ -90,6 +96,7 @@ export default function DashboardApp() {
         </div>
         {content}
       </div>
+      {opp && <DetailPanel opp={opp} onClose={() => setOpp(null)} />}
     </div>
   );
 }
