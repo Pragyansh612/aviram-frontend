@@ -1,11 +1,14 @@
 "use client";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { INTEL } from "@/components/dashboard/data";
-import { PageHead } from "@/components/dashboard/shared";
+import { CountUp, PageHead } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 
 export default function CareerIntelligence() {
   const ref = useRef<HTMLDivElement>(null);
+  const headlineRef = useRef<HTMLDivElement>(null);
+  const [countUp, setCountUp] = useState(false);
+
   useEffect(() => {
     const el = ref.current; if (!el) return;
     const io = new IntersectionObserver((es) => {
@@ -19,6 +22,15 @@ export default function CareerIntelligence() {
     return () => io.disconnect();
   }, []);
 
+  useEffect(() => {
+    const el = headlineRef.current; if (!el) return;
+    const io = new IntersectionObserver((es) => {
+      if (es.some(e => e.isIntersecting)) { setCountUp(true); io.disconnect(); }
+    }, { threshold: 0.5 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
   return (
     <div className="page">
       <PageHead
@@ -29,10 +41,10 @@ export default function CareerIntelligence() {
         <p className="report-lede">After 91 applications and 14 weeks of watching what works, here is what the data says about <span className="em">where you actually win</span> — and what's leaving interviews on the table.</p>
         <div className="report-block">
           <div className="rb-title">The headline <span className="ln" /></div>
-          <div className="proj-row">
-            <div className="stat"><div className="n">{INTEL.current}%</div><div className="k">Current interview rate</div></div>
+          <div className="proj-row" ref={headlineRef}>
+            <div className="stat"><div className="n"><CountUp to={INTEL.current} start={countUp} />%</div><div className="k">Current interview rate</div></div>
             <div className="arrow">→</div>
-            <div className="stat"><div className="n up">{INTEL.projected}%</div><div className="k">Projected with optimisation</div></div>
+            <div className="stat"><div className="n up"><CountUp to={INTEL.projected} start={countUp} />%</div><div className="k">Projected with optimisation</div></div>
           </div>
           <p style={{ fontSize: 14, color: "var(--ink-3)", marginTop: 16, maxWidth: "52ch" }}>That gap isn't luck. It's three habits Aviram can enforce on every application: referral-first, post-fresh, and the right resume per role.</p>
         </div>

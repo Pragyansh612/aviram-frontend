@@ -4,10 +4,32 @@ import { VAULT } from "@/components/dashboard/data";
 import { PageHead } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 
+type UrgencyFilter = "all" | "high" | "medium" | "low";
+type RateFilter = "all" | "high" | "mid" | "low";
+type ReferralFilter = "all" | "yes" | "no";
+type FundingFilter = "all" | "recent" | "stable";
+
 export default function ResearchVault() {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(VAULT[0].id);
-  const list = VAULT.filter((v) => (v.name + " " + v.tagline).toLowerCase().includes(q.toLowerCase()));
+  const [urgency, setUrgency] = useState<UrgencyFilter>("all");
+  const [rate, setRate] = useState<RateFilter>("all");
+  const [referral, setReferral] = useState<ReferralFilter>("all");
+  const [funding, setFunding] = useState<FundingFilter>("all");
+
+  const list = VAULT.filter((v) => {
+    if (!(v.name + " " + v.tagline).toLowerCase().includes(q.toLowerCase())) return false;
+    if (urgency !== "all" && v.urgency !== urgency) return false;
+    if (rate === "high" && v.responseRate < 15) return false;
+    if (rate === "mid" && (v.responseRate < 10 || v.responseRate >= 15)) return false;
+    if (rate === "low" && v.responseRate >= 10) return false;
+    if (referral === "yes" && !v.hasReferral) return false;
+    if (referral === "no" && v.hasReferral) return false;
+    if (funding === "recent" && !v.fundingRecent) return false;
+    if (funding === "stable" && v.fundingRecent) return false;
+    return true;
+  });
+
   return (
     <div className="page">
       <PageHead
@@ -22,11 +44,29 @@ export default function ResearchVault() {
         </div>
         <span style={{ fontFamily: "var(--mono)", fontSize: 11.5, color: "var(--ink-4)" }}>{list.length} dossiers</span>
       </div>
+      <div className="vault-filters">
+        <span className="vf-label">Urgency</span>
+        {(["all", "high", "medium", "low"] as UrgencyFilter[]).map((u) => (
+          <button key={u} type="button" className={"fchip" + (urgency === u ? " active" : "")} onClick={() => setUrgency(u)}>{u === "all" ? "All" : u.charAt(0).toUpperCase() + u.slice(1)}</button>
+        ))}
+        <span className="vf-label">Response rate</span>
+        {([["all", "All"], ["high", "≥15%"], ["mid", "10–14%"], ["low", "<10%"]] as [RateFilter, string][]).map(([id, label]) => (
+          <button key={id} type="button" className={"fchip" + (rate === id ? " active" : "")} onClick={() => setRate(id)}>{label}</button>
+        ))}
+        <span className="vf-label">Referral</span>
+        {([["all", "All"], ["yes", "Available"], ["no", "None"]] as [ReferralFilter, string][]).map(([id, label]) => (
+          <button key={id} type="button" className={"fchip" + (referral === id ? " active" : "")} onClick={() => setReferral(id)}>{label}</button>
+        ))}
+        <span className="vf-label">Funding</span>
+        {([["all", "All"], ["recent", "Recent"], ["stable", "Stable"]] as [FundingFilter, string][]).map(([id, label]) => (
+          <button key={id} type="button" className={"fchip" + (funding === id ? " active" : "")} onClick={() => setFunding(id)}>{label}</button>
+        ))}
+      </div>
       {list.map((v) => {
         const isOpen = open === v.id;
         return (
           <div className="dossier" key={v.id}>
-            <div className="ds-head" onClick={() => setOpen(isOpen ? "" : v.id)}>
+            <div className="ds-head" onClick={() => setOpen(isOpen ? "" : v.id)} role="button" tabIndex={0}>
               <span className="ds-logo">{v.logo}</span>
               <div className="ds-l">
                 <div className="ds-name">{v.name}</div>

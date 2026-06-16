@@ -1,14 +1,54 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { PREP } from "@/components/dashboard/data";
 import { PageHead } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 
 const arrIcon: React.CSSProperties = { width: 14, height: 14, display: "inline-block" };
+const PREP_TASKS_KEY = "aviram-prep-tasks";
+const QB_CATEGORIES = ["All", "Technical", "Behavioral", "System Design", "Company", "HR", "Coding"] as const;
+
+function loadChecked(): Set<string> {
+  try {
+    const raw = localStorage.getItem(PREP_TASKS_KEY);
+    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+  } catch { return new Set(); }
+}
+
+function saveChecked(set: Set<string>) {
+  try { localStorage.setItem(PREP_TASKS_KEY, JSON.stringify([...set])); } catch {}
+}
 
 export default function InterviewPrep() {
   const [view, setView] = useState<"list" | "brief">("list");
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [qbFilter, setQbFilter] = useState<string>("All");
+  const [taskPrep, setTaskPrep] = useState<string>("p1");
   const b = PREP.brief;
+
+  useEffect(() => { setChecked(loadChecked()); }, []);
+
+  const toggleTask = (id: string) => {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      saveChecked(next);
+      return next;
+    });
+  };
+
+  const tasksForPrep = PREP.tasks.filter(t => t.prepId === taskPrep);
+  const tasksByDay = useMemo(() => {
+    const days = [...new Set(tasksForPrep.map(t => t.day))].sort((a, b) => b - a);
+    return days.map(day => ({ day, items: tasksForPrep.filter(t => t.day === day) }));
+  }, [tasksForPrep]);
+
+  const filteredQuestions = PREP.questionBank.filter(q =>
+    qbFilter === "All" || q.category === qbFilter
+  );
+
+  const taskDone = tasksForPrep.filter(t => checked.has(t.id)).length;
+  const taskPct = tasksForPrep.length ? Math.round(taskDone / tasksForPrep.length * 100) : 0;
 
   if (view === "brief") {
     return (
@@ -16,7 +56,7 @@ export default function InterviewPrep() {
         <PageHead
           eyebrow={<><span style={{ width: 13, height: 13, display: "inline-block" }}><Icon name="prep" /></span> Interview Prep · Brief</>}
           title={b.company + " · " + b.role}
-          right={<button className="btn btn-ghost btn-sm" onClick={() => setView("list")}>← All interviews</button>}
+          right={<button type="button" className="btn btn-ghost btn-sm" onClick={() => setView("list")}>← All interviews</button>}
         />
         <div className="brief-doc">
           <div className="bd-block">
@@ -66,34 +106,59 @@ export default function InterviewPrep() {
       />
       <div className="prep-grid">
         {PREP.upcoming.map((p) => (
-          <div className={"prep-card" + (p.soon ? " soon" : "")} key={p.id}>
+          <div
+            className={"prep-card" + (p.soon ? " soon" : "") + (taskPrep === p.id ? " active-prep" : "")}
+            key={p.id}
+            onClick={() => setTaskPrep(p.id)}
+            style={{ cursor: "pointer" }}
+            role="button"
+            tabIndex={0}
+          >
             <div className="pc-count"><span style={{ width: 13, height: 13, display: "inline-block" }}><Icon name="clock" /></span> In {p.countdown}</div>
             <div className="pc-co">{p.company}</div>
             <div className="pc-role">{p.role}</div>
             <div className="pc-date">{p.date}</div>
             <div className="pc-progress">
-              <div className="pl"><span>Prep tasks</span><span>{p.progress}%</span></div>
-              <div className="pbar"><i style={{ width: p.progress + "%" }} /></div>
+              <div className="pl"><span>Prep tasks</span><span>{taskPrep === p.id ? taskPct : p.progress}%</span></div>
+              <div className="pbar"><i style={{ width: (taskPrep === p.id ? taskPct : p.progress) + "%" }} /></div>
             </div>
             <div className="pc-act">
-              <button className={"btn btn-sm " + (p.soon ? "btn-primary" : "btn-ghost")} onClick={() => setView("brief")}>
+              <button type="button" className={"btn btn-sm " + (p.soon ? "btn-primary" : "btn-ghost")} onClick={(e) => { e.stopPropagation(); setTaskPrep(p.id); setView("brief"); }}>
                 Open prep brief <span className="arr" style={arrIcon}><Icon name="arrow" /></span>
               </button>
             </div>
           </div>
         ))}
       </div>
+
+      <div className="sec-label">Prep plan · {PREP.upcoming.find(p => p.id === taskPrep)?.company} <span className="ln" /></div>
+      <div className="prep-tasks card card-pad">
+        {tasksByDay.map(({ day, items }) => (
+          <div className="prep-day" key={day}>
+            <div className="prep-day-h">Day {day} {day === 1 ? "· interview day" : day === 2 ? "· eve before" : "· before"}</div>
+            {items.map((t) => (
+              <label className="prep-task" key={t.id}>
+                <input type="checkbox" checked={checked.has(t.id)} onChange={() => toggleTask(t.id)} />
+                <span className={checked.has(t.id) ? "done" : ""}>{t.label}</span>
+              </label>
+            ))}
+          </div>
+        ))}
+      </div>
+
       <div className="sec-label">Question bank <span className="ln" /></div>
       <div className="filterbar">
-        {["All", "Systems design", "Behavioral", "Coding", "Domain"].map((f, i) => (
-          <button key={f} className={"fchip" + (i === 0 ? " active" : "")}>{f}</button>
+        {QB_CATEGORIES.map((f) => (
+          <button key={f} type="button" className={"fchip" + (qbFilter === f ? " active" : "")} onClick={() => setQbFilter(f)}>{f}</button>
         ))}
       </div>
       <div className="card">
-        {b.questions.map((q, i) => (
-          <div key={i} className="dp-kv" style={{ padding: "14px 18px", borderBottom: i < b.questions.length - 1 ? "1px solid var(--line-soft)" : "none" }}>
+        {filteredQuestions.length === 0 ? (
+          <p className="empty-line">No questions in this category.</p>
+        ) : filteredQuestions.map((q, i) => (
+          <div key={i} className="dp-kv" style={{ padding: "14px 18px", borderBottom: i < filteredQuestions.length - 1 ? "1px solid var(--line-soft)" : "none" }}>
             <span className="k" style={{ fontSize: 13.5, color: "var(--ink-2)" }}>{q.q}</span>
-            <span className="v" style={{ color: "var(--ink-4)", fontSize: 11 }}>{q.star.split(" · ")[0]}</span>
+            <span className="v" style={{ color: "var(--ink-4)", fontSize: 11 }}>{q.category}</span>
           </div>
         ))}
       </div>

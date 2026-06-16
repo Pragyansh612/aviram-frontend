@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { USER } from "@/components/dashboard/data";
+import { USER, MISSIONS } from "@/components/dashboard/data";
 import { PageHead } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 
@@ -51,9 +51,22 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
             <div className="srow" key={i}><div className="sl"><div className="k">{k}</div></div><div className="sv txt">{v}</div></div>
           ))}
         </SettingsSection>
-        <SettingsSection icon="target" title="Job Preferences" sub="missions configured">
+        <SettingsSection icon="target" title="Job Preferences" sub="roles & locations">
           {prefs.map(([k, v], i) => (
             <div className="srow" key={i}><div className="sl"><div className="k">{k}</div></div><div className="sv txt">{v}</div></div>
+          ))}
+        </SettingsSection>
+        <SettingsSection icon="command" title="Missions" sub={`${MISSIONS.length} active`}>
+          {MISSIONS.map((m) => (
+            <div className="srow mission-srow" key={m.id}>
+              <div className="sl">
+                <div className="k">{m.title}</div>
+                <div className="d">{m.done} / {m.target} target applications · predicted {m.predicted.toFixed(1)} interviews</div>
+              </div>
+              <div className="mission-bar-wrap">
+                <div className="bar"><i style={{ width: (m.done / m.target * 100) + "%" }} /></div>
+              </div>
+            </div>
           ))}
         </SettingsSection>
         <SettingsSection icon="sliders" title="Auto-Apply Rules" sub="applied every run">

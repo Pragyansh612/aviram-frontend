@@ -12,6 +12,8 @@ const APP_TABS = [
 
 export default function Applications() {
   const [tab, setTab] = useState("all");
+  const [expanded, setExpanded] = useState<string | null>(null);
+
   const match = (a: typeof APPS[0]) => {
     switch (tab) {
       case "applied": return a.status === "applied";
@@ -29,6 +31,9 @@ export default function Applications() {
     interview: APPS.filter(a => a.status === "interview").length,
     closed: APPS.filter(a => ["rejected","offer","withdrawn"].includes(a.status)).length,
   };
+
+  const toggle = (id: string) => setExpanded(expanded === id ? null : id);
+
   return (
     <div className="page">
       <PageHead
@@ -38,7 +43,7 @@ export default function Applications() {
       />
       <div className="filterbar">
         {APP_TABS.map((t) => (
-          <button key={t.id} className={"fchip" + (tab === t.id ? " active" : "")} onClick={() => setTab(t.id)}>
+          <button key={t.id} type="button" className={"fchip" + (tab === t.id ? " active" : "")} onClick={() => setTab(t.id)}>
             {t.label}<span className="cnt">{counts[t.id as keyof typeof counts]}</span>
           </button>
         ))}
@@ -48,15 +53,54 @@ export default function Applications() {
           <span>Company / Role</span><span>Status</span>
           <span className="h-variant">Resume</span><span className="h-ips">IPS</span><span>Applied</span>
         </div>
-        {list.map((a) => (
-          <div className="apps-row" key={a.id}>
-            <div><div className="ar-co">{a.company}</div><div className="ar-role">{a.role} · {a.platform}</div></div>
-            <StatusPill status={a.status} label={a.statusLabel} />
-            <span className="ar-variant">Variant {a.variant}</span>
-            <span className="ar-ips"><IPSChip score={a.ips} /></span>
-            <span className="ar-date">{a.date}</span>
-          </div>
-        ))}
+        {list.map((a) => {
+          const isOpen = expanded === a.id;
+          const withdrawn = a.status === "withdrawn";
+          return (
+            <div key={a.id} className={"apps-block" + (isOpen ? " open" : "")}>
+              <div
+                className={"apps-row" + (withdrawn ? " withdrawn" : "") + (isOpen ? " sel" : "")}
+                onClick={() => toggle(a.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(a.id); } }}
+              >
+                <div>
+                  <div className="ar-co">{a.company}</div>
+                  <div className="ar-role">{a.role} · {a.platform}</div>
+                </div>
+                <StatusPill status={a.status} label={a.statusLabel} />
+                <span className="ar-variant">Variant {a.variant}</span>
+                <span className="ar-ips"><IPSChip score={a.ips} /></span>
+                <span className="ar-date">{a.date}</span>
+              </div>
+              {isOpen && (
+                <div className="apps-expand">
+                  <div className="ae-col">
+                    <div className="ae-label">Cover letter generated</div>
+                    <p className="ae-cover">{a.coverLetter}</p>
+                  </div>
+                  <div className="ae-col">
+                    <div className="ae-label">Resume version</div>
+                    <p className="ae-meta">Variant {a.variant} · IPS {a.ips} at submission · {a.platform}</p>
+                  </div>
+                  <div className="ae-col">
+                    <div className="ae-label">Application timeline</div>
+                    <ul className="ae-events">
+                      {a.events.map((ev, i) => (
+                        <li key={i}><span className="ae-time">{ev.time}</span>{ev.text}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="ae-act">
+                    <button type="button" className="btn btn-ghost btn-sm">Update outcome</button>
+                    <button type="button" className="btn btn-quiet btn-sm">View full detail →</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

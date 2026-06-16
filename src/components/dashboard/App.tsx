@@ -4,7 +4,9 @@ import { useRouter } from "next/navigation";
 import { Sidebar, MobileTabBar } from "./shared";
 import Entry from "./Entry";
 import DetailPanel from "./DetailPanel";
+import CampaignPanel from "./CampaignPanel";
 import type { Opp } from "./DetailPanel";
+import type { Campaign } from "./CampaignPanel";
 import {
   clearFirstTimeBrief,
   getStoredProfile,
@@ -57,6 +59,7 @@ export default function DashboardApp() {
   const [theme, toggleTheme] = useTheme();
   const [running, setRunning] = useState(true);
   const [opp, setOpp] = useState<Opp | null>(null);
+  const [campaign, setCampaign] = useState<Campaign | null>(null);
 
   useEffect(() => {
     if (!isAuthed()) {
@@ -71,10 +74,14 @@ export default function DashboardApp() {
   }, [router]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpp(null); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { setOpp(null); setCampaign(null); }
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  const closePanels = () => { setOpp(null); setCampaign(null); };
 
   const finishBrief = () => {
     markBriefSeen();
@@ -82,8 +89,10 @@ export default function DashboardApp() {
     setStage("app");
   };
 
-  const navigate = (p: PageId) => { setPage(p); setOpp(null); };
+  const navigate = (p: PageId) => { setPage(p); closePanels(); };
   const goTo = (p: string) => { finishBrief(); navigate(p as PageId); };
+  const openOpp = (o: Opp) => { setCampaign(null); setOpp(o); };
+  const openCampaign = (c: Campaign) => { setOpp(null); setCampaign(c); };
 
   if (!ready) return null;
 
@@ -93,17 +102,17 @@ export default function DashboardApp() {
 
   let content: React.ReactNode;
   switch (page) {
-    case "command":       content = <CommandCenter goTo={navigate} openOpp={setOpp} />; break;
+    case "command":       content = <CommandCenter goTo={navigate} openOpp={openOpp} />; break;
     case "timeline":      content = <Timeline goTo={navigate} />; break;
-    case "opportunities": content = <Opportunities openOpp={setOpp} selectedId={opp?.id} />; break;
+    case "opportunities": content = <Opportunities openOpp={openOpp} selectedId={opp?.id} />; break;
     case "applications":  content = <Applications />; break;
     case "resume":        content = <ResumeLab />; break;
     case "intelligence":  content = <CareerIntelligence />; break;
     case "vault":         content = <ResearchVault />; break;
-    case "outreach":      content = <Outreach />; break;
+    case "outreach":      content = <Outreach openCampaign={openCampaign} selectedId={campaign?.id} />; break;
     case "prep":          content = <InterviewPrep />; break;
     case "settings":      content = <Settings running={running} toggleRunning={() => setRunning(r => !r)} />; break;
-    default:              content = <CommandCenter goTo={navigate} openOpp={setOpp} />;
+    default:              content = <CommandCenter goTo={navigate} openOpp={openOpp} />;
   }
 
   return (
@@ -125,7 +134,8 @@ export default function DashboardApp() {
         {content}
       </div>
       <MobileTabBar page={page} setPage={navigate} />
-      {opp && <DetailPanel opp={opp} onClose={() => setOpp(null)} />}
+      {opp && <DetailPanel opp={opp} onClose={closePanels} />}
+      {campaign && <CampaignPanel campaign={campaign} onClose={closePanels} />}
     </div>
   );
 }
