@@ -1,6 +1,6 @@
 "use client";
 import { BRIEF, OPPS } from "@/components/dashboard/data";
-import { IPSChip, Urgent } from "@/components/dashboard/shared";
+import { IPSChip, Urgent, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 import type { PageId } from "@/components/dashboard/shared";
 
@@ -109,7 +109,9 @@ export default function CommandCenter({ goTo, openOpp }: {
             <span className="live"><span className="dot" /> IPS ↓</span>
           </div>
           <div className="feed-list">
-            {feed.map((o) => (
+            {feed.length === 0 ? (
+              <EmptyState>No opportunities in the queue right now.</EmptyState>
+            ) : feed.map((o) => (
               <div className="feed-row" key={o.id} onClick={() => openOpp(o)}>
                 <IPSChip score={o.ips} />
                 <div className="fr-m">

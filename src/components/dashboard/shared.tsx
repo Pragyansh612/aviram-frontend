@@ -10,7 +10,8 @@ export type PageId =
 export function ipsTier(n: number) { return n >= 75 ? "high" : n >= 50 ? "mid" : "low"; }
 
 export function IPSChip({ score, size, solid }: { score: number; size?: "lg"; solid?: boolean }) {
-  const cls = ["ips", ipsTier(score), size === "lg" ? "lg" : "", solid ? "solid" : ""].filter(Boolean).join(" ");
+  const tier = ipsTier(score);
+  const cls = ["ips", tier, size === "lg" ? "lg" : "", solid ? "solid" : ""].filter(Boolean).join(" ");
   return (
     <span className={cls}>
       <span className="lbl">IPS</span>
@@ -105,6 +106,10 @@ export function ScoreTree({ tree, total }: { tree: { match: number; urgency: num
 }
 
 // ---------- page header ----------
+export function EmptyState({ children }: { children: React.ReactNode }) {
+  return <p className="empty-line">{children}</p>;
+}
+
 export function PageHead({ eyebrow, title, sub, right }: { eyebrow?: React.ReactNode; title: string; sub?: string; right?: React.ReactNode }) {
   return (
     <div className="page-head">
@@ -119,10 +124,11 @@ export function PageHead({ eyebrow, title, sub, right }: { eyebrow?: React.React
 }
 
 // ---------- stagger hook ----------
-export function useStagger(count: number, active = true, step = 70, base = 80) {
+export function useStagger(count: number, active = true, step = 50, base = 60) {
   const [shown, setShown] = useState(active ? 0 : count);
   useEffect(() => {
     if (!active) { setShown(count); return; }
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { setShown(count); return; }
     setShown(0);
     const timers: ReturnType<typeof setTimeout>[] = [];
     for (let i = 0; i < count; i++) {

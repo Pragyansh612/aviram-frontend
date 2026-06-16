@@ -42,19 +42,28 @@ function ActiveSystem({ onOpen, firstTime }: { onOpen: () => void; firstTime?: b
   );
 }
 
+function BlLine({ i, shown, className, children }: { i: number; shown: number; className?: string; children?: React.ReactNode }) {
+  return (
+    <div className={"bl-line" + (i < shown ? " in" : "") + (className ? " " + className : "")}>
+      {children}
+    </div>
+  );
+}
+
 function BriefLetterFirst({ onEnter, firstName }: { onEnter: () => void; firstName: string }) {
+  const shown = useStagger(4, true, 50, 140);
   return (
     <div className="brief-letter">
-      <div className="bl-greet">Good morning, <span className="em">{firstName}</span>.</div>
-      <div className="bl-first-msg">
+      <BlLine i={0} shown={shown} className="bl-greet">Good morning, <span className="em">{firstName}</span>.</BlLine>
+      <BlLine i={1} shown={shown} className="bl-first-msg">
         Aviram is starting. Your first opportunities will appear within the hour.
-      </div>
-      <div className="bl-rule" />
-      <div className="bl-foot">
+      </BlLine>
+      <BlLine i={2} shown={shown} className="bl-rule" />
+      <BlLine i={3} shown={shown} className="bl-foot">
         <button className="btn btn-primary" onClick={onEnter}>
           Open Command Center <span className="arr" style={arrIcon}><Icon name="arrow" /></span>
         </button>
-      </div>
+      </BlLine>
     </div>
   );
 }
@@ -67,22 +76,23 @@ function BriefLetter({ onEnter, goTo, firstName }: { onEnter: () => void; goTo: 
     { n: BRIEF.referral,   k: "referral surfaced" },
     { n: BRIEF.interview,  k: "interview scheduled" },
   ];
+  const shown = useStagger(13, true, 50, 140);
   return (
     <div className="brief-letter">
-      <div className="bl-greet">Good morning, <span className="em">{firstName}</span>.</div>
-      <div className="bl-while">While you were away — {USER.activeFor} of autonomous work.</div>
+      <BlLine i={0} shown={shown} className="bl-greet">Good morning, <span className="em">{firstName}</span>.</BlLine>
+      <BlLine i={1} shown={shown} className="bl-while">While you were away — {USER.activeFor} of autonomous work.</BlLine>
       <div className="bl-stats">
         {stats.map((s, i) => (
-          <div className={"bl-stat" + (s.n <= 1 ? " muted" : "")} key={i}>
-            <span className="n"><CountUp to={s.n} duration={900 + i * 120} /></span>
+          <BlLine i={2 + i} shown={shown} className={"bl-stat" + (s.n <= 1 ? " muted" : "")} key={i}>
+            <span className="n"><CountUp to={s.n} duration={900 + i * 120} start={i + 2 < shown} /></span>
             <span className="k">{s.k}</span>
-          </div>
+          </BlLine>
         ))}
       </div>
-      <div className="bl-rule" />
-      <div className="bl-need"><b>2</b> things need your attention.</div>
+      <BlLine i={7} shown={shown} className="bl-rule" />
+      <BlLine i={8} shown={shown} className="bl-need"><b>2</b> things need your attention.</BlLine>
       <div className="bl-actions">
-        <div className="bl-action">
+        <BlLine i={9} shown={shown} className="bl-action">
           <div className="ba-l">
             <div className="ba-kicker">Interview in 47 hours</div>
             <div className="ba-title">Razorpay · SDE-2</div>
@@ -91,8 +101,8 @@ function BriefLetter({ onEnter, goTo, firstName }: { onEnter: () => void; goTo: 
           <button className="btn btn-primary btn-sm" onClick={() => goTo("prep")}>
             Open Brief <span className="arr" style={arrIcon}><Icon name="arrow" /></span>
           </button>
-        </div>
-        <div className="bl-action">
+        </BlLine>
+        <BlLine i={10} shown={shown} className="bl-action">
           <div className="ba-l">
             <div className="ba-kicker">Referral draft ready</div>
             <div className="ba-title">Stripe · Backend Engineer</div>
@@ -101,14 +111,14 @@ function BriefLetter({ onEnter, goTo, firstName }: { onEnter: () => void; goTo: 
           <button className="btn btn-ghost btn-sm" onClick={() => goTo("outreach")}>
             Review Draft <span className="arr" style={arrIcon}><Icon name="arrow" /></span>
           </button>
-        </div>
+        </BlLine>
       </div>
-      <div className="bl-rule" />
-      <div className="bl-foot">
+      <BlLine i={11} shown={shown} className="bl-rule" />
+      <BlLine i={12} shown={shown} className="bl-foot">
         <button className="btn btn-quiet" onClick={onEnter}>
           Open Command Center <span className="arr" style={arrIcon}><Icon name="arrow" /></span>
         </button>
-      </div>
+      </BlLine>
     </div>
   );
 }
@@ -255,7 +265,7 @@ export default function Entry({
         )}
         <button type="button" className="btn btn-quiet btn-sm" onClick={onEnter} style={{ marginLeft: 4 }}>Skip →</button>
       </div>
-      <div className="brief-scroll">
+      <div className="brief-scroll" key={variant + (firstTime ? "-first" : "-return")}>
         {firstTime ? (
           variant === "letter"
             ? <BriefLetterFirst onEnter={onEnter} firstName={firstName} />

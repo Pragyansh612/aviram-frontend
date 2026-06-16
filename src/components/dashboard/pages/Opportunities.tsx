@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { OPPS, MISSIONS } from "@/components/dashboard/data";
-import { IPSChip, Urgent, PageHead } from "@/components/dashboard/shared";
+import { IPSChip, Urgent, PageHead, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 import type { Opp } from "@/components/dashboard/DetailPanel";
 
@@ -50,7 +50,9 @@ export default function Opportunities({ openOpp, selectedId }: { openOpp: (o: Op
         <button className="btn btn-ghost btn-sm">Apply to top 5 →</button>
       </div>
       <div className="opp-list">
-        {list.map((o) => (
+        {list.length === 0 ? (
+          <EmptyState>No opportunities match your current filters.</EmptyState>
+        ) : list.map((o) => (
           <div className={"opp-row" + (selectedId === o.id ? " sel" : "")} key={o.id} onClick={() => openOpp(o)}>
             <IPSChip score={o.ips} size="lg" />
             <div className="or-m">

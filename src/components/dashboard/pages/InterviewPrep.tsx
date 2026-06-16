@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
 import { PREP } from "@/components/dashboard/data";
-import { PageHead } from "@/components/dashboard/shared";
+import { PageHead, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 
 const arrIcon: React.CSSProperties = { width: 14, height: 14, display: "inline-block" };
@@ -104,6 +104,10 @@ export default function InterviewPrep() {
         title="The application was automated. This part won't be."
         sub="Aviram assembles a prep brief from your real history for every interview it books."
       />
+      {PREP.upcoming.length === 0 ? (
+        <EmptyState>No interviews scheduled. Aviram will add prep plans when it books one.</EmptyState>
+      ) : (
+      <>
       <div className="prep-grid">
         {PREP.upcoming.map((p) => (
           <div
@@ -162,6 +166,8 @@ export default function InterviewPrep() {
           </div>
         ))}
       </div>
+      </>
+      )}
     </div>
   );
 }

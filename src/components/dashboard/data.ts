@@ -107,6 +107,7 @@ export const RESUME = {
 };
 
 export const INTEL = {
+  hasData: true,
   current: 6, projected: 14,
   wins: [
     { k: "Series A fintech", v: 22, hi: true },

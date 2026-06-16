@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { VAULT } from "@/components/dashboard/data";
-import { PageHead } from "@/components/dashboard/shared";
+import { PageHead, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 
 type UrgencyFilter = "all" | "high" | "medium" | "low";
@@ -62,7 +62,9 @@ export default function ResearchVault() {
           <button key={id} type="button" className={"fchip" + (funding === id ? " active" : "")} onClick={() => setFunding(id)}>{label}</button>
         ))}
       </div>
-      {list.map((v) => {
+      {list.length === 0 ? (
+        <EmptyState>No dossiers match your search or filters.</EmptyState>
+      ) : list.map((v) => {
         const isOpen = open === v.id;
         return (
           <div className="dossier" key={v.id}>

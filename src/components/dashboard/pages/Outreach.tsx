@@ -1,6 +1,6 @@
 "use client";
 import { OUTREACH } from "@/components/dashboard/data";
-import { PageHead } from "@/components/dashboard/shared";
+import { PageHead, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 import type { Campaign } from "@/components/dashboard/CampaignPanel";
 
@@ -18,6 +18,10 @@ export default function Outreach({ openCampaign, selectedId }: {
         sub="Aviram finds the shortest route into each company and writes the intro. Nothing leaves until you press send."
         right={<button type="button" className="btn btn-ghost btn-sm">New campaign</button>}
       />
+      {OUTREACH.drafts.length === 0 && OUTREACH.campaigns.length === 0 ? (
+        <EmptyState>No outreach drafts or campaigns yet.</EmptyState>
+      ) : (
+      <>
       <div className="sec-label">Referral drafts — awaiting your send <span className="ln" /> <span style={{ color: "var(--clay)", fontWeight: 600 }}>{OUTREACH.drafts.length}</span></div>
       {OUTREACH.drafts.map((d) => (
         <div className="draft-card" key={d.id}>
@@ -51,6 +55,8 @@ export default function Outreach({ openCampaign, selectedId }: {
           <button type="button" className="btn btn-quiet btn-sm" onClick={(e) => { e.stopPropagation(); openCampaign(c); }}>View</button>
         </div>
       ))}
+      </>
+      )}
     </div>
   );
 }

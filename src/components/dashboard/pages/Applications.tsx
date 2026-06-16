@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { APPS } from "@/components/dashboard/data";
-import { IPSChip, StatusPill, PageHead } from "@/components/dashboard/shared";
+import { IPSChip, StatusPill, PageHead, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 
 const APP_TABS = [
@@ -49,6 +49,10 @@ export default function Applications() {
         ))}
       </div>
       <div className="apps-table">
+        {list.length === 0 ? (
+          <EmptyState>No applications yet.</EmptyState>
+        ) : (
+        <>
         <div className="apps-colhead">
           <span>Company / Role</span><span>Status</span>
           <span className="h-variant">Resume</span><span className="h-ips">IPS</span><span>Applied</span>
@@ -101,6 +105,8 @@ export default function Applications() {
             </div>
           );
         })}
+        </>
+        )}
       </div>
     </div>
   );

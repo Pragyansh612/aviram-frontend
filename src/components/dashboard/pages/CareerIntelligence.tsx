@@ -1,7 +1,7 @@
 "use client";
 import { useRef, useEffect, useState } from "react";
 import { INTEL } from "@/components/dashboard/data";
-import { CountUp, PageHead } from "@/components/dashboard/shared";
+import { CountUp, PageHead, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 
 export default function CareerIntelligence() {
@@ -37,6 +37,9 @@ export default function CareerIntelligence() {
         eyebrow={<><span style={{ width: 13, height: 13, display: "inline-block" }}><Icon name="intelligence" /></span> Career Intelligence</>}
         title="What Aviram has learned about your search."
       />
+      {!INTEL.hasData ? (
+        <EmptyState>Aviram needs more outcome data to generate insights — complete your first calibration period.</EmptyState>
+      ) : (
       <div className="report" ref={ref}>
         <p className="report-lede">After 91 applications and 14 weeks of watching what works, here is what the data says about <span className="em">where you actually win</span> — and what's leaving interviews on the table.</p>
         <div className="report-block">
@@ -83,6 +86,7 @@ export default function CareerIntelligence() {
           <p style={{ fontSize: 13.5, color: "var(--ink-3)", marginTop: 16 }}>Kubernetes shows up in 31 of your 47 queued roles. Six weeks of it lifts your predicted IPS across the whole backend queue — the single highest-leverage thing on this page.</p>
         </div>
       </div>
+      )}
     </div>
   );
 }
