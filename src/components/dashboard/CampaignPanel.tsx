@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { Icon } from "./icons";
 import { showToast } from "./Toast";
 import type { OUTREACH } from "./data";
@@ -20,6 +21,11 @@ export default function CampaignPanel({ campaign, onClose }: { campaign: Campaig
           <button className="dp-close" onClick={onClose} aria-label="Close panel">
             <span style={{ width: 16, height: 16, display: "block" }}><Icon name="x" /></span>
           </button>
+        </div>
+        <div className="dp-fullpage-bar">
+          <Link className="dp-fullpage-link" href={`/outreach/${campaign.id}`} target="_blank" rel="noopener noreferrer">
+            Open full page →
+          </Link>
         </div>
         <div className="detail-body">
           <div className="dp-sec">Campaign status</div>

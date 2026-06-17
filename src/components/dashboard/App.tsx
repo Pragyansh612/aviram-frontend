@@ -79,7 +79,7 @@ export default function DashboardApp() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { setOpp(null); setCampaign(null); }
+      if (e.key === "Escape") { setOpp(null); setCampaign(null); setVaultEntry(null); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

@@ -72,6 +72,7 @@ function BriefLetterFirst({ onEnter, firstName }: { onEnter: () => void; firstNa
 }
 
 function BriefLetter({ onEnter, goTo, firstName }: { onEnter: () => void; goTo: (p: string) => void; firstName: string }) {
+  const activeDuration = getActiveForDuration() ?? USER.activeFor;
   const stats = [
     { n: BRIEF.discovered, k: "opportunities discovered" },
     { n: BRIEF.shortlisted, k: "shortlisted by score" },
@@ -83,7 +84,7 @@ function BriefLetter({ onEnter, goTo, firstName }: { onEnter: () => void; goTo: 
   return (
     <div className="brief-letter">
       <BlLine i={0} shown={shown} className="bl-greet">Good morning, <span className="em">{firstName}</span>.</BlLine>
-      <BlLine i={1} shown={shown} className="bl-while">While you were away — {USER.activeFor} of autonomous work.</BlLine>
+      <BlLine i={1} shown={shown} className="bl-while">While you were away — {activeDuration} of autonomous work.</BlLine>
       <div className="bl-stats">
         {stats.map((s, i) => (
           <BlLine i={2 + i} shown={shown} className={"bl-stat" + (s.n <= 1 ? " muted" : "")} key={i}>
@@ -167,6 +168,7 @@ function BriefTerminalFirst({ onEnter, firstName }: { onEnter: () => void; first
 }
 
 function BriefTerminal({ onEnter, goTo, firstName }: { onEnter: () => void; goTo: (p: string) => void; firstName: string }) {
+  const activeDuration = getActiveForDuration() ?? USER.activeFor;
   const rows = [
     { tk: "22:48", n: BRIEF.discovered, tx: "opportunities discovered across 16 sources" },
     { tk: "23:31", n: BRIEF.shortlisted, tx: "shortlisted above your IPS threshold" },
@@ -181,13 +183,13 @@ function BriefTerminal({ onEnter, goTo, firstName }: { onEnter: () => void; goTo
       <div className="bt-window">
         <div className="bt-head">
           <span className="dots"><i /><i /><i /></span>
-          <span className="ttl">aviram · overnight session · {USER.activeFor}</span>
+          <span className="ttl">aviram · overnight session · {activeDuration}</span>
           <span className="live"><span className="dot" /> session closed</span>
         </div>
         <div className="bt-body">
           <div className="bt-prompt"><span className="usr">aviram@{USER.archetype}</span>:<span className="cmd">~$</span> summary --since last-login</div>
           <div className="bt-greet">Good morning, {firstName}.</div>
-          <div className="bt-sub">{USER.activeFor} active · 16 sources · {BRIEF.discovered} found · {BRIEF.submitted} applied · {BRIEF.interview} interview</div>
+          <div className="bt-sub">{activeDuration} active · 16 sources · {BRIEF.discovered} found · {BRIEF.submitted} applied · {BRIEF.interview} interview</div>
           <div className="bt-feed">
             {rows.map((r, i) => (
               <div className={"bt-row" + (i < shown ? " in" : "")} key={i}>

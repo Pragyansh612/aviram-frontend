@@ -1181,9 +1181,8 @@ section { position: relative; }
 .search-input input { border: none; background: none; outline: none; color: var(--ink); font-family: var(--mono); font-size: 12.5px; flex: 1; }
 .vault-list { display: flex; flex-direction: column; gap: 8px; }
 .dossier { background: var(--paper); border: 1px solid var(--line); border-radius: 13px; margin-bottom: 12px; overflow: hidden; }
-.dossier.dossier-row { cursor: pointer; margin-bottom: 0; transition: border-color .18s var(--ease), background .18s var(--ease); }
+.dossier.dossier-row { cursor: pointer; margin-bottom: 0; overflow: visible; display: flex; align-items: center; gap: 16px; padding: 16px 22px; transition: border-color .18s var(--ease), background .18s var(--ease); }
 .dossier.dossier-row:hover, .dossier.dossier-row.sel { border-color: var(--accent-edge); background: color-mix(in srgb, var(--accent-tint) 40%, var(--paper)); }
-.dossier.dossier-row .ds-head, .dossier.dossier-row { display: flex; align-items: center; gap: 16px; padding: 16px 22px; }
 .dossier .ds-head { display: flex; align-items: center; gap: 16px; padding: 18px 22px; cursor: pointer; }
 .dossier .ds-logo { width: 40px; height: 40px; border-radius: 9px; flex: none; display: grid; place-items: center; font-family: var(--serif); font-size: 19px; background: var(--accent-tint); color: var(--accent); }
 .dossier .ds-l { flex: 1; min-width: 0; }

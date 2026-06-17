@@ -283,13 +283,11 @@ export default function Opportunities({ openOpp, selectedId }: { openOpp: (o: Op
           // Group by mission view
           (() => {
             const groups: Array<{ missionId: string | null; label: string; items: typeof visibleList }> = [];
-            const seen = new Set<string | null>();
             // Preserve IPS sort within groups; group order = missions order then null
             const orderedMissionIds = [...MISSIONS.map((m) => m.id), null];
             for (const mid of orderedMissionIds) {
               const items = visibleList.filter((o) => o.mission === mid);
               if (items.length > 0) {
-                seen.add(mid);
                 groups.push({ missionId: mid, label: mid ? (MISSION_LABELS[mid] ?? mid) : "No mission", items });
               }
             }
