@@ -59,7 +59,7 @@ export default function CommandCenter({ goTo, openOpp }: {
   goTo: (p: PageId) => void;
   openOpp: (o: typeof OPPS[0]) => void;
 }) {
-  const feed = OPPS.filter((o) => !o.skipped).slice(0, 15);
+  const feed = [...OPPS].filter((o) => !o.skipped).sort((a, b) => b.ips - a.ips).slice(0, 15);
   const actions = ACTION_ITEMS.slice(0, 7);
   const segs = [
     { n: BRIEF.discovered, k: "found" },

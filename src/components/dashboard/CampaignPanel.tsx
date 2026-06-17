@@ -1,8 +1,11 @@
 "use client";
 import { Icon } from "./icons";
+import { showToast } from "./Toast";
 import type { OUTREACH } from "./data";
 
 export type Campaign = (typeof OUTREACH.campaigns)[number];
+
+const STUB_MSG = "This will be available when connected to backend.";
 
 export default function CampaignPanel({ campaign, onClose }: { campaign: Campaign; onClose: () => void }) {
   return (
@@ -30,9 +33,11 @@ export default function CampaignPanel({ campaign, onClose }: { campaign: Campaig
           <div className="dp-sec">Notes</div>
           <p className="camp-notes">{campaign.notes}</p>
           <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
-            <button className="btn btn-primary btn-sm">Open draft</button>
-            <button className="btn btn-ghost btn-sm">Edit message</button>
+            {/* Both stubs — ghost weight, not primary */}
+            <button className="btn btn-ghost btn-sm" onClick={() => showToast(STUB_MSG)}>Open draft</button>
+            <button className="btn btn-quiet btn-sm" onClick={() => showToast(STUB_MSG)}>Edit message</button>
           </div>
+          <div className="dp-stub-note">Backend not yet connected — actions will be live soon.</div>
         </div>
       </aside>
     </>

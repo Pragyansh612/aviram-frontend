@@ -1,9 +1,12 @@
 "use client";
 import { IPSChip, ScoreTree } from "./shared";
 import { Icon } from "./icons";
+import { showToast } from "./Toast";
 import type { OPPS } from "./data";
 
 export type Opp = (typeof OPPS)[number];
+
+const STUB_MSG = "This will be available when connected to backend.";
 
 function refInitials(refPath: string) {
   const m = refPath.match(/via (\w)\w* (\w)/);
@@ -57,10 +60,27 @@ export default function DetailPanel({ opp, onClose }: { opp: Opp; onClose: () =>
           <div className="dp-kv"><span className="k">ATS</span><span className="v">{opp.platform}</span></div>
           {!opp.skipped && (
             <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
-              <button className="btn btn-primary">Queue application <span className="arr" style={{ width: 14, height: 14, display: "inline-block" }}><Icon name="arrow" /></span></button>
-              <button className="btn btn-ghost">Tailor resume</button>
+              {/* Primary CTA: Queue application — stub with toast, styled as ghost until backend */}
+              <button
+                className="btn btn-ghost"
+                onClick={() => showToast(STUB_MSG)}
+                title="Requires backend connection"
+              >
+                Queue application <span className="arr" style={{ width: 14, height: 14, display: "inline-block" }}><Icon name="arrow" /></span>
+              </button>
+              {/* Secondary: Tailor resume — clearly secondary weight */}
+              <button
+                className="btn btn-quiet btn-sm"
+                onClick={() => showToast(STUB_MSG)}
+                title="Requires backend connection"
+              >
+                Tailor resume
+              </button>
             </div>
           )}
+          <div className="dp-stub-note">
+            Backend not yet connected — actions will be live soon.
+          </div>
         </div>
       </aside>
     </>

@@ -27,6 +27,7 @@ import ResearchVault from "./pages/ResearchVault";
 import Outreach from "./pages/Outreach";
 import InterviewPrep from "./pages/InterviewPrep";
 import Settings from "./pages/Settings";
+import ToastHost from "./Toast";
 
 const PAGE_TITLE: Record<PageId, string> = {
   command: "Command Center", timeline: "Timeline", opportunities: "Opportunities",
@@ -136,6 +137,7 @@ export default function DashboardApp() {
       <MobileTabBar page={page} setPage={navigate} />
       {opp && <DetailPanel opp={opp} onClose={closePanels} />}
       {campaign && <CampaignPanel campaign={campaign} onClose={closePanels} />}
+      <ToastHost />
     </div>
   );
 }

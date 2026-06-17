@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { RESUME } from "@/components/dashboard/data";
 import { PageHead, EmptyState } from "@/components/dashboard/shared";
+import { showToast } from "@/components/dashboard/Toast";
 import { Icon } from "@/components/dashboard/icons";
 
 export default function ResumeLab() {
@@ -36,7 +37,7 @@ export default function ResumeLab() {
             <button type="button" className={"btn btn-sm " + (compare ? "btn-primary" : "btn-ghost")} onClick={() => setCompare(!compare)}>
               {compare ? "Exit compare" : "Compare versions"}
             </button>
-            <button type="button" className="btn btn-ghost btn-sm">Upload new ↑</button>
+            <button type="button" className="btn btn-quiet btn-sm" onClick={() => showToast("Resume upload will be available when connected to backend.")}>Upload new ↑</button>
           </div>
         }
       />
@@ -116,7 +117,14 @@ export default function ResumeLab() {
             <div className="ec-kick">Live A/B · statistically significant</div>
             <div className="ec-stat">Variant {RESUME.experiment.winner} is outperforming Variant {RESUME.experiment.loser} by <b>{RESUME.experiment.lift}%</b> for {RESUME.experiment.category}.</div>
             <div className="ec-meta">{RESUME.experiment.apps} applications tested · confidence: {RESUME.experiment.confidence}</div>
-            <button type="button" className="btn" style={{ background: "var(--deep-fg)", color: "var(--deep-bg)" }}>Set {RESUME.experiment.winner} as default</button>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              style={{ marginTop: 2 }}
+              onClick={() => showToast(`Setting Variant ${RESUME.experiment.winner} as default will be available when connected to backend.`)}
+            >
+              Set {RESUME.experiment.winner} as default
+            </button>
           </div>
           <div className="sec-label" style={{ marginTop: 26 }}>Skills gap <span className="ln" /></div>
           <div className="card card-pad">

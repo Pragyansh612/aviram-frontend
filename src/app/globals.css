@@ -966,6 +966,50 @@ section { position: relative; }
 @keyframes scrimIn { to { opacity: 1; } }
 .detail-panel { position: fixed; top: 0; right: 0; bottom: 0; width: min(540px, 94vw); z-index: 91; background: var(--paper); border-left: 1px solid var(--line); overflow-y: auto; transform: translateX(100%); animation: panelIn .35s var(--ease-out) forwards; }
 @keyframes panelIn { to { transform: none; } }
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+.toast-host { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); z-index: 300; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
+.toast { font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.01em; padding: 10px 18px; border-radius: 9px; border: 1px solid var(--line); background: var(--paper); color: var(--ink-2); box-shadow: 0 4px 18px rgba(20,19,15,0.10); animation: toastIn .22s var(--ease-out), toastOut .22s var(--ease-out) 3.1s forwards; white-space: nowrap; pointer-events: auto; }
+.toast-info  { border-color: var(--line-strong); }
+.toast-success { border-color: var(--accent-edge); color: var(--accent); }
+.toast-warn  { border-color: color-mix(in srgb, var(--clay) 40%, transparent); color: var(--clay); }
+@keyframes toastIn  { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes toastOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(6px); } }
+[data-theme="dark"] .toast { background: var(--paper-2); }
+@media (max-width: 860px) { .toast-host { bottom: calc(70px + env(safe-area-inset-bottom, 0px)); } }
+
+/* ============================================================
+   SKIP UNDO PILL
+   ============================================================ */
+.undo-pill { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px; color: var(--ink-3); padding: 4px 10px; border: 1px solid var(--line); border-radius: 20px; background: var(--paper); cursor: pointer; animation: toastIn .18s var(--ease-out); transition: color .15s, border-color .15s; }
+.undo-pill:hover { color: var(--accent); border-color: var(--accent-edge); }
+
+/* ============================================================
+   BULK APPLY OVERLAY
+   ============================================================ */
+.bulk-scrim { position: fixed; inset: 0; background: rgba(20,19,15,0.38); z-index: 200; display: grid; place-items: center; animation: scrimIn .2s var(--ease) forwards; }
+[data-theme="dark"] .bulk-scrim { background: rgba(0,0,0,0.55); }
+.bulk-sheet { background: var(--paper); border: 1px solid var(--line); border-radius: 16px; width: min(620px, 94vw); max-height: 86vh; overflow-y: auto; animation: sheetIn .28s var(--ease-out); box-shadow: 0 8px 32px rgba(20,19,15,0.10); }
+@keyframes sheetIn { from { opacity: 0; transform: scale(.97) translateY(10px); } to { opacity: 1; transform: none; } }
+.bulk-head { padding: 22px 24px 18px; border-bottom: 1px solid var(--line-soft); display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.bulk-head h2 { font-family: var(--serif); font-size: 24px; letter-spacing: -0.01em; line-height: 1.1; }
+.bulk-head .bh-sub { font-size: 13px; color: var(--ink-3); margin-top: 6px; }
+.bulk-body { padding: 0; }
+.bulk-row { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; padding: 14px 24px; border-bottom: 1px solid var(--line-soft); }
+.bulk-row:last-child { border-bottom: none; }
+.bulk-row .br-co { font-size: 14px; font-weight: 500; letter-spacing: -0.01em; }
+.bulk-row .br-role { font-family: var(--mono); font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+.bulk-row .br-variant { font-family: var(--mono); font-size: 11px; color: var(--ink-3); white-space: nowrap; }
+.bulk-foot { padding: 18px 24px; border-top: 1px solid var(--line-soft); display: flex; align-items: center; gap: 10px; background: var(--paper-2); border-radius: 0 0 16px 16px; }
+.bulk-count { font-family: var(--mono); font-size: 12px; color: var(--ink-3); margin-left: auto; }
+
+/* ============================================================
+   OPP-ROW SKIP ANIMATION
+   ============================================================ */
+.opp-row { max-height: 180px; transition: opacity .35s var(--ease-out), max-height .38s var(--ease-out), margin .35s var(--ease-out), padding .35s var(--ease-out), border-color .35s var(--ease-out); overflow: hidden; }
+.opp-row.fading { opacity: 0; max-height: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important; margin-bottom: 0 !important; pointer-events: none; border-color: transparent !important; }
 .detail-head { display: flex; align-items: flex-start; gap: 14px; padding: 22px 24px 18px; border-bottom: 1px solid var(--line-soft); position: sticky; top: 0; background: var(--paper); z-index: 2; }
 .detail-head .dh-l { flex: 1; min-width: 0; }
 .detail-head .dh-role { font-family: var(--serif); font-size: 24px; letter-spacing: -0.01em; line-height: 1.1; }
@@ -979,6 +1023,7 @@ section { position: relative; }
 .dp-kv { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--line-soft); font-size: 13px; }
 .dp-kv .k { color: var(--ink-3); }
 .dp-kv .v { font-family: var(--mono); font-weight: 500; }
+.dp-stub-note { font-family: var(--mono); font-size: 10.5px; color: var(--ink-4); margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line-soft); letter-spacing: 0.01em; }
 
 /* ============================================================
    APPLICATIONS TABLE (dashboard)
