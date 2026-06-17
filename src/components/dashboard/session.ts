@@ -70,10 +70,38 @@ export function getDisplayName(): string {
   return "there";
 }
 
+// ---- login timestamp (for "active for X hours" computation) ----
+const LOGIN_TIME_KEY = "aviram-login-time";
+
+/** Record the current wall-clock time as the last login moment. */
+export function recordLoginTime(): void {
+  try { localStorage.setItem(LOGIN_TIME_KEY, String(Date.now())); } catch {}
+}
+
+/**
+ * Format elapsed milliseconds into a human-friendly "Xh Ym" string.
+ * Returns null if there is no stored timestamp (first ever login).
+ */
+export function getActiveForDuration(): string | null {
+  try {
+    const raw = localStorage.getItem(LOGIN_TIME_KEY);
+    if (!raw) return null;
+    const prev = parseInt(raw, 10);
+    if (isNaN(prev)) return null;
+    const elapsed = Math.max(0, Date.now() - prev);
+    const totalMin = Math.floor(elapsed / 60_000);
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    if (h === 0) return m <= 1 ? "a few minutes" : `${m}m`;
+    return m === 0 ? `${h}h` : `${h}h ${m}m`;
+  } catch { return null; }
+}
+
 /** Fresh login — show Morning Brief again. */
 export function beginLoginSession(): void {
   clearBriefSeen();
   clearFirstTimeBrief();
+  recordLoginTime();
 }
 
 /** Onboarding finished — first-time Morning Brief + entry sequence. */
@@ -81,4 +109,5 @@ export function beginFirstDashboardSession(): void {
   clearBriefSeen();
   setFirstTimeBrief();
   markOnboardingComplete();
+  recordLoginTime();
 }

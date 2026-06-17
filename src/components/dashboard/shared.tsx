@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { Icon } from "./icons";
+import { USER } from "./data";
 
 export type PageId =
   | "command" | "timeline" | "opportunities" | "applications"
@@ -186,7 +187,7 @@ export function Sidebar({ page, setPage, running, toggleRunning, toggleTheme }: 
   toggleTheme: () => void;
 }) {
   const [confirmPause, setConfirmPause] = useState(false);
-  const u = { archetype: "mid_backend", calibration: 14, calibrationMax: 25 };
+  const u = USER;
 
   const handleStatusClick = () => {
     if (running) setConfirmPause(true);
@@ -214,9 +215,11 @@ export function Sidebar({ page, setPage, running, toggleRunning, toggleTheme }: 
                 type="button"
                 className={"nav-item" + (page === item.id ? " active" : "")}
                 onClick={() => item.id && setPage(item.id)}
+                title={item.label}
+                aria-label={item.label}
               >
                 <span className="ico"><Icon name={item.icon!} /></span>
-                <span>{item.label}</span>
+                <span className="nav-lbl">{item.label}</span>
               </button>
             )
         )}

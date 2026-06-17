@@ -3,11 +3,14 @@ import { useState, useEffect } from "react";
 import { Icon } from "./icons";
 import { CountUp, useStagger } from "./shared";
 import { USER, BRIEF } from "./data";
-import { getDisplayName } from "./session";
+import { getDisplayName, getActiveForDuration } from "./session";
 
 const arrIcon: React.CSSProperties = { width: 14, height: 14, display: "inline-block" };
 
 function ActiveSystem({ onOpen, firstTime }: { onOpen: () => void; firstTime?: boolean }) {
+  // Compute duration from real login timestamp; fall back to mock data
+  const duration = getActiveForDuration() ?? USER.activeFor;
+
   useEffect(() => {
     const t = setTimeout(onOpen, firstTime ? 1800 : 2600);
     return () => clearTimeout(t);
@@ -23,12 +26,12 @@ function ActiveSystem({ onOpen, firstTime }: { onOpen: () => void; firstTime?: b
         </div>
         {firstTime ? (
           <>
-            <div className="as-line l1">Aviram is <b>starting</b>.</div>
-            <div className="as-line l2">Your workspace is ready.<span className="as-caret" /></div>
+            <div className="as-line l1">Aviram is <b>ready</b>.</div>
+            <div className="as-line l2">Your workspace is set up.<span className="as-caret" /></div>
           </>
         ) : (
           <>
-            <div className="as-line l1">Aviram was active for <b>{USER.activeFor}</b>.</div>
+            <div className="as-line l1">Aviram was active for <b>{duration}</b>.</div>
             <div className="as-line l2">Brief ready.<span className="as-caret" /></div>
           </>
         )}

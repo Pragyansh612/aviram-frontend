@@ -130,6 +130,20 @@ export default function DashboardApp() {
           <span className="crumb">Aviram · <b>{PAGE_TITLE[page]}</b></span>
           <span className="spacer" />
           <span className="clock">{running ? "● live" : "❚❚ paused"}</span>
+          <button
+            className="topbar-theme-toggle"
+            onClick={toggleTheme}
+            title="Toggle light / dark"
+            aria-label="Toggle theme"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z" className="i-moon" />
+              <g className="i-sun">
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+              </g>
+            </svg>
+          </button>
           <span className="avatar">{avatarInitial()}</span>
         </div>
         {content}
