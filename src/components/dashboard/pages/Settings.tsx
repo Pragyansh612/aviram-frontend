@@ -51,7 +51,9 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
             <div className="srow" key={i}><div className="sl"><div className="k">{k}</div></div><div className="sv txt">{v}</div></div>
           ))}
         </SettingsSection>
-        <SettingsSection icon="target" title="Job Preferences" sub="roles & locations">
+        {/* Job Preferences: roles, locations, salary, industry — no Missions here.
+            Missions are their own section below (P4 decision: distinct concept, distinct space). */}
+        <SettingsSection icon="target" title="Job Preferences" sub="roles · locations · salary">
           {prefs.map(([k, v], i) => (
             <div className="srow" key={i}><div className="sl"><div className="k">{k}</div></div><div className="sv txt">{v}</div></div>
           ))}

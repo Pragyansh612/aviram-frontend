@@ -753,10 +753,18 @@ section { position: relative; }
 .pill.applied   { color: var(--st-applied);   background: var(--st-applied-bg); }
 .pill.response  { color: var(--st-response);  background: var(--st-response-bg); }
 .pill.interview { color: var(--st-interview); background: var(--st-interview-bg); }
-.pill.reject    { color: var(--st-reject);    background: var(--st-reject-bg); }
+/* data.ts uses "rejected" — keep both so either works */
+.pill.reject, .pill.rejected { color: var(--st-reject); background: var(--st-reject-bg); }
 .pill.offer     { color: var(--st-offer);     background: var(--st-offer-bg); }
 .pill.withdrawn { color: var(--st-withdrawn); background: var(--st-withdrawn-bg); }
 .pill.withdrawn .pdot { opacity: 0.7; }
+/* applied-state pill used on Opportunities rows */
+.pill.app-interview { color: var(--st-interview); background: var(--st-interview-bg); }
+.pill.app-response  { color: var(--st-response);  background: var(--st-response-bg); }
+.pill.app-applied   { color: var(--st-applied);   background: var(--st-applied-bg); }
+.pill.app-rejected  { color: var(--st-reject);    background: var(--st-reject-bg); }
+.pill.app-offer     { color: var(--st-offer);     background: var(--st-offer-bg); }
+.pill.app-withdrawn { color: var(--st-withdrawn); background: var(--st-withdrawn-bg); }
 
 .tagchip { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); letter-spacing: 0.01em; padding: 3px 8px; border-radius: 5px; border: 1px solid var(--line); background: var(--cream); }
 
@@ -1004,6 +1012,15 @@ section { position: relative; }
 .bulk-row .br-variant { font-family: var(--mono); font-size: 11px; color: var(--ink-3); white-space: nowrap; }
 .bulk-foot { padding: 18px 24px; border-top: 1px solid var(--line-soft); display: flex; align-items: center; gap: 10px; background: var(--paper-2); border-radius: 0 0 16px 16px; }
 .bulk-count { font-family: var(--mono); font-size: 12px; color: var(--ink-3); margin-left: auto; }
+
+/* ============================================================
+   OPP-ROW ALREADY-APPLIED STATE
+   ============================================================ */
+.opp-row.already-applied { background: var(--paper-2); opacity: 0.82; }
+.opp-row.already-applied .or-role { color: var(--ink-3); }
+.opp-row.already-applied .or-sub  { color: var(--ink-4); }
+.opp-app-status { display: flex; align-items: center; gap: 6px; }
+.opp-app-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-4); }
 
 /* ============================================================
    OPP-ROW SKIP ANIMATION
