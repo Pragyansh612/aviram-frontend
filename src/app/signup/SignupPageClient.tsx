@@ -13,9 +13,18 @@ export default function SignupPageClient() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     markAuthed();
-    // Persist email so Settings Profile can show the real address after onboarding.
+    // Persist email — spread existing first, then override email so signup always wins
     const existing = getStoredProfile();
-    saveStoredProfile({ name: "", email, phone: "", linkedin: "", roles: "", locations: "", salaryFloor: "", ...existing });
+    saveStoredProfile({
+      name: "",
+      phone: "",
+      linkedin: "",
+      roles: "",
+      locations: "",
+      salaryFloor: "",
+      ...(existing ?? {}),
+      email,
+    });
     router.push("/onboarding");
   };
 

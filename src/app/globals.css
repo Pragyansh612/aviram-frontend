@@ -604,6 +604,7 @@ section { position: relative; }
 .setting .s-val { font-family: var(--mono); font-size: var(--fs-body); font-weight: 600; color: var(--accent); }
 .setting .toggle { width: 42px; height: 24px; border-radius: 20px; background: var(--accent); position: relative; flex: none; }
 .setting .toggle i { position: absolute; width: 18px; height: 18px; border-radius: 50%; background: var(--accent-fg); top: 3px; right: 3px; }
+#control .setting .toggle { pointer-events: none; cursor: default; opacity: 0.9; }
 .controls-aside .serif-line { font-family: var(--serif); font-size: var(--fs-h1); line-height: 1.18; margin-bottom: 20px; letter-spacing: -0.015em; }
 .controls-aside p { font-size: var(--fs-body); color: var(--ink-3); line-height: 1.55; max-width: 38ch; }
 .controls-aside .quiet { font-family: var(--mono); font-size: var(--fs-micro); color: var(--ink-4); margin-top: 22px; letter-spacing: 0.03em; }

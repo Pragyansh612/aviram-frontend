@@ -97,6 +97,21 @@ export function removeSkippedOpp(id: string): void {
   } catch {}
 }
 
+// ---- deep-link flags (action items → open specific views) ----
+export const OPEN_PREP_BRIEF_KEY = "aviram-open-prep-brief";
+
+export function requestOpenPrepBrief(): void {
+  try { sessionStorage.setItem(OPEN_PREP_BRIEF_KEY, "1"); } catch {}
+}
+
+export function consumeOpenPrepBrief(): boolean {
+  try {
+    const v = sessionStorage.getItem(OPEN_PREP_BRIEF_KEY) === "1";
+    if (v) sessionStorage.removeItem(OPEN_PREP_BRIEF_KEY);
+    return v;
+  } catch { return false; }
+}
+
 // ---- login timestamp (for "active for X hours" computation) ----
 const LOGIN_TIME_KEY = "aviram-login-time";
 

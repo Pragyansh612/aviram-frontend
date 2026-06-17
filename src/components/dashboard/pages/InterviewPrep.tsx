@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { PREP } from "@/components/dashboard/data";
 import { PageHead, EmptyState } from "@/components/dashboard/shared";
+import { consumeOpenPrepBrief } from "@/components/dashboard/session";
 import { Icon } from "@/components/dashboard/icons";
 
 const arrIcon: React.CSSProperties = { width: 14, height: 14, display: "inline-block" };
@@ -27,6 +28,9 @@ export default function InterviewPrep() {
   const b = PREP.brief;
 
   useEffect(() => { setChecked(loadChecked()); }, []);
+  useEffect(() => {
+    if (consumeOpenPrepBrief()) setView("brief");
+  }, []);
 
   const toggleTask = (id: string) => {
     setChecked((prev) => {

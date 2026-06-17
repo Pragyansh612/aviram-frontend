@@ -3,6 +3,7 @@ import { useState } from "react";
 import { OPPS, ACTIVITY_RANGES } from "@/components/dashboard/data";
 import { IPSChip, Urgent, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
+import { requestOpenPrepBrief } from "@/components/dashboard/session";
 import type { PageId } from "@/components/dashboard/shared";
 
 type RangeKey = "24h" | "7d" | "30d";
@@ -80,6 +81,11 @@ export default function CommandCenter({ goTo, openOpp }: {
 
   const handleRangeSelect = (r: RangeKey) => { setRange(r); setDropOpen(false); };
 
+  const handleAction = (a: typeof ACTION_ITEMS[0]) => {
+    if (a.to === "prep" && a.btn === "Open Brief") requestOpenPrepBrief();
+    goTo(a.to);
+  };
+
   return (
     <div className="page page-ops">
       <div className="cc-statusbar">
@@ -141,7 +147,7 @@ export default function CommandCenter({ goTo, openOpp }: {
                     </div>
                   </div>
                   <div className="aq-act">
-                    <button className={"btn btn-sm " + (a.primary ? "btn-primary" : "btn-ghost")} onClick={() => goTo(a.to)}>
+                    <button className={"btn btn-sm " + (a.primary ? "btn-primary" : "btn-ghost")} onClick={() => handleAction(a)}>
                       {a.btn} <span className="arr" style={arrIcon}><Icon name="arrow" /></span>
                     </button>
                   </div>

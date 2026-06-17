@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { TIMELINE } from "@/components/dashboard/data";
 import { IPSChip, PageHead, EmptyState, useStagger } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
-import { getSkippedOpps, type SkippedOpp } from "@/components/dashboard/session";
+import { getSkippedOpps, requestOpenPrepBrief, type SkippedOpp } from "@/components/dashboard/session";
 import type { PageId } from "@/components/dashboard/shared";
 
 const arrIcon: React.CSSProperties = { width: 14, height: 14, display: "inline-block" };
@@ -63,10 +63,15 @@ export default function Timeline({ goTo }: { goTo: (p: PageId) => void }) {
     return todayGroup.events.length > 0 ? [todayGroup, ...staticGroups] : staticGroups;
   })();
 
-  const hasAnyEvents = TIMELINE.some((g) => g.events.length > 0);
+  const hasAnyEvents = TIMELINE.some((g) => g.events.length > 0) || runtimeSkipped.length > 0;
   const totalEvents = groups.reduce((n, g) => n + g.events.length, 0);
   const shown = useStagger(totalEvents, totalEvents > 0, 50, 60);
   let eventIdx = 0;
+
+  const handleTimelineAction = (type: string) => {
+    if (type === "interview") requestOpenPrepBrief();
+    goTo(type === "interview" ? "prep" : type === "referral" ? "outreach" : "applications");
+  };
 
   return (
     <div className="page">
@@ -111,7 +116,7 @@ export default function Timeline({ goTo }: { goTo: (p: PageId) => void }) {
                         <div className="tl-row-act">
                           <button
                             className="btn-link"
-                            onClick={() => goTo(e.type === "interview" ? "prep" : e.type === "referral" ? "outreach" : "applications")}
+                            onClick={() => handleTimelineAction(e.type)}
                           >
                             {e.action} <span className="arr" style={arrIcon}><Icon name="arrow" /></span>
                           </button>

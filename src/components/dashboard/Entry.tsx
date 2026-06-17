@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Icon } from "./icons";
 import { CountUp, useStagger } from "./shared";
 import { USER, BRIEF } from "./data";
-import { getDisplayName, getActiveForDuration } from "./session";
+import { getDisplayName, getActiveForDuration, requestOpenPrepBrief } from "./session";
 
 const arrIcon: React.CSSProperties = { width: 14, height: 14, display: "inline-block" };
 
@@ -102,7 +102,7 @@ function BriefLetter({ onEnter, goTo, firstName }: { onEnter: () => void; goTo: 
             <div className="ba-title">Razorpay · SDE-2</div>
             <div className="ba-meta">Prep brief ready · Thursday 9:00 AM</div>
           </div>
-          <button className="btn btn-primary btn-sm" onClick={() => goTo("prep")}>
+          <button className="btn btn-primary btn-sm" onClick={() => { requestOpenPrepBrief(); goTo("prep"); }}>
             Open Brief <span className="arr" style={arrIcon}><Icon name="arrow" /></span>
           </button>
         </BlLine>
@@ -208,7 +208,7 @@ function BriefTerminal({ onEnter, goTo, firstName }: { onEnter: () => void; goTo
                 <div className="tt">Interview in 47 hours · Razorpay SDE-2</div>
                 <div className="tm">prep brief ready · thu 09:00</div>
               </div>
-              <button className="btn btn-primary btn-sm" onClick={() => goTo("prep")}>Open Brief</button>
+              <button className="btn btn-primary btn-sm" onClick={() => { requestOpenPrepBrief(); goTo("prep"); }}>Open Brief</button>
             </div>
             <div className="bt-task">
               <span className="bullet">▸</span>
