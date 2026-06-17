@@ -3,15 +3,21 @@ import { useState } from "react";
 import { VAULT } from "@/components/dashboard/data";
 import { PageHead, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
+import type { VaultEntry } from "@/components/dashboard/VaultPanel";
 
 type UrgencyFilter = "all" | "high" | "medium" | "low";
 type RateFilter = "all" | "high" | "mid" | "low";
 type ReferralFilter = "all" | "yes" | "no";
 type FundingFilter = "all" | "recent" | "stable";
 
-export default function ResearchVault() {
+export default function ResearchVault({
+  openVault,
+  selectedId,
+}: {
+  openVault: (v: VaultEntry) => void;
+  selectedId?: string | null;
+}) {
   const [q, setQ] = useState("");
-  const [open, setOpen] = useState(VAULT[0].id);
   const [urgency, setUrgency] = useState<UrgencyFilter>("all");
   const [rate, setRate] = useState<RateFilter>("all");
   const [referral, setReferral] = useState<ReferralFilter>("all");
@@ -47,7 +53,9 @@ export default function ResearchVault() {
       <div className="vault-filters">
         <span className="vf-label">Urgency</span>
         {(["all", "high", "medium", "low"] as UrgencyFilter[]).map((u) => (
-          <button key={u} type="button" className={"fchip" + (urgency === u ? " active" : "")} onClick={() => setUrgency(u)}>{u === "all" ? "All" : u.charAt(0).toUpperCase() + u.slice(1)}</button>
+          <button key={u} type="button" className={"fchip" + (urgency === u ? " active" : "")} onClick={() => setUrgency(u)}>
+            {u === "all" ? "All" : u.charAt(0).toUpperCase() + u.slice(1)}
+          </button>
         ))}
         <span className="vf-label">Response rate</span>
         {([["all", "All"], ["high", "≥15%"], ["mid", "10–14%"], ["low", "<10%"]] as [RateFilter, string][]).map(([id, label]) => (
@@ -64,11 +72,17 @@ export default function ResearchVault() {
       </div>
       {list.length === 0 ? (
         <EmptyState>No dossiers match your search or filters.</EmptyState>
-      ) : list.map((v) => {
-        const isOpen = open === v.id;
-        return (
-          <div className="dossier" key={v.id}>
-            <div className="ds-head" onClick={() => setOpen(isOpen ? "" : v.id)} role="button" tabIndex={0}>
+      ) : (
+        <div className="vault-list">
+          {list.map((v) => (
+            <div
+              key={v.id}
+              className={"dossier dossier-row" + (selectedId === v.id ? " sel" : "")}
+              onClick={() => openVault(v)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") openVault(v); }}
+            >
               <span className="ds-logo">{v.logo}</span>
               <div className="ds-l">
                 <div className="ds-name">{v.name}</div>
@@ -76,22 +90,14 @@ export default function ResearchVault() {
               </div>
               <div className="ds-sig">
                 <span className={"signal-pill " + v.signal}>{v.signal === "strong" ? "Strong signal" : v.signal === "medium" ? "Medium" : "Weak"}</span>
-                <span style={{ width: 16, height: 16, color: "var(--ink-4)", transform: isOpen ? "rotate(90deg)" : "none", transition: "transform .2s", display: "block" }}><Icon name="chevron" /></span>
+                <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--ink-4)" }}>{v.responseRate}% reply</span>
+                {v.hasReferral && <span style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--accent)", background: "var(--accent-tint)", padding: "2px 7px", borderRadius: 5 }}>Referral</span>}
+                <button className="btn btn-quiet btn-sm" type="button" onClick={(e) => { e.stopPropagation(); openVault(v); }}>View →</button>
               </div>
             </div>
-            {isOpen && (
-              <div className="ds-body">
-                {v.kv.map((row, i) => (
-                  <div className="intel-kv" key={i}>
-                    <span className="ik">{row[0]}</span>
-                    <span className={"iv " + (row[2] || "")}>{row[1]}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })}
+          ))}
+        </div>
+      )}
     </div>
   );
 }

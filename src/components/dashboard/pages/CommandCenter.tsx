@@ -1,8 +1,11 @@
 "use client";
-import { BRIEF, OPPS } from "@/components/dashboard/data";
+import { useState } from "react";
+import { OPPS, ACTIVITY_RANGES } from "@/components/dashboard/data";
 import { IPSChip, Urgent, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 import type { PageId } from "@/components/dashboard/shared";
+
+type RangeKey = "24h" | "7d" | "30d";
 
 const arrIcon: React.CSSProperties = { width: 14, height: 14, display: "inline-block" };
 
@@ -59,15 +62,23 @@ export default function CommandCenter({ goTo, openOpp }: {
   goTo: (p: PageId) => void;
   openOpp: (o: typeof OPPS[0]) => void;
 }) {
+  const [range, setRange] = useState<RangeKey>("24h");
+  const [dropOpen, setDropOpen] = useState(false);
+
   const feed = [...OPPS].filter((o) => !o.skipped).sort((a, b) => b.ips - a.ips).slice(0, 15);
   const actions = ACTION_ITEMS.slice(0, 7);
+  const activity = ACTIVITY_RANGES[range];
   const segs = [
-    { n: BRIEF.discovered, k: "found" },
-    { n: BRIEF.shortlisted, k: "scored" },
-    { n: BRIEF.submitted, k: "applied" },
-    { n: BRIEF.referral, k: "referral" },
-    { n: BRIEF.interview, k: "interview" },
+    { n: activity.discovered, k: "found" },
+    { n: activity.shortlisted, k: "scored" },
+    { n: activity.submitted, k: "applied" },
+    { n: activity.referral, k: "referral" },
+    { n: activity.interview, k: "interview" },
   ];
+
+  const RANGES: RangeKey[] = ["24h", "7d", "30d"];
+
+  const handleRangeSelect = (r: RangeKey) => { setRange(r); setDropOpen(false); };
 
   return (
     <div className="page page-ops">
@@ -76,9 +87,36 @@ export default function CommandCenter({ goTo, openOpp }: {
         {segs.map((s, i) => (
           <span className="seg" key={i}><span className="n">{s.n}</span> {s.k}</span>
         ))}
-        <span className="ago">
+        <span className="ago" style={{ position: "relative" }}>
           Updated 4 min ago
-          <button className="cc-range" type="button">24h ▾</button>
+          <button
+            className="cc-range"
+            type="button"
+            onClick={() => setDropOpen((d) => !d)}
+            aria-haspopup="listbox"
+            aria-expanded={dropOpen}
+          >
+            {range} ▾
+          </button>
+          {dropOpen && (
+            <>
+              <div style={{ position: "fixed", inset: 0, zIndex: 50 }} onClick={() => setDropOpen(false)} />
+              <div className="cc-range-drop" role="listbox">
+                {RANGES.map((r) => (
+                  <button
+                    key={r}
+                    className={"cc-range-item" + (r === range ? " active" : "")}
+                    role="option"
+                    aria-selected={r === range}
+                    type="button"
+                    onClick={() => handleRangeSelect(r)}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </span>
       </div>
       <div className="cc-grid">

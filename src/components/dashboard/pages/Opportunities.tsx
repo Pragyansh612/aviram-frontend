@@ -7,6 +7,11 @@ import type { Opp } from "@/components/dashboard/DetailPanel";
 
 const OPP_FILTERS = ["All", "Remote", "Referral available", "⚡ Urgent", "IPS ≥ 80", "Series A–B"];
 
+// Mission label map for group headers
+const MISSION_LABELS: Record<string, string> = Object.fromEntries(
+  MISSIONS.map((m) => [m.id, m.title])
+);
+
 // Map each opp ID to its current application status (if any), derived from APPS data.
 // Uses company + role as the join key (matches the findOppForApp logic in Applications.tsx).
 function buildAppliedMap(): Map<string, { status: string; statusLabel: string }> {
@@ -36,6 +41,79 @@ const APP_STATUS_LABELS: Record<string, string> = {
 
 // Variant selected per opp for bulk apply
 function pickVariant(ips: number) { return ips >= 85 ? "B" : "A"; }
+
+// Extracted row component used in both flat and grouped views
+function OppRow({
+  o,
+  selectedId,
+  fading,
+  skipped,
+  applied,
+  sessionApplied,
+  openOpp,
+  handleSkip,
+}: {
+  o: Opp;
+  selectedId: string | null | undefined;
+  fading: Set<string>;
+  skipped: Set<string>;
+  applied: Map<string, { status: string; statusLabel: string }>;
+  sessionApplied: Set<string>;
+  openOpp: (o: Opp) => void;
+  handleSkip: (e: React.MouseEvent, id: string) => void;
+}) {
+  const isSkipped = skipped.has(o.id);
+  const isFading = fading.has(o.id);
+  const existingApp = applied.get(o.id);
+  const isSessionApplied = sessionApplied.has(o.id);
+  const isApplied = !!existingApp || isSessionApplied;
+  const appStatus = existingApp?.status ?? (isSessionApplied ? "applied" : null);
+  const appStatusLabel = appStatus ? (APP_STATUS_LABELS[appStatus] ?? appStatus) : null;
+
+  return (
+    <div
+      className={["opp-row", selectedId === o.id ? "sel" : "", isFading ? "fading" : "", isApplied && !isSkipped ? "already-applied" : ""].filter(Boolean).join(" ")}
+      onClick={() => !isSkipped && openOpp(o)}
+      style={{ cursor: isSkipped ? "default" : "pointer" }}
+    >
+      <IPSChip score={o.ips} size="lg" />
+      <div className="or-m">
+        <div className="or-role">
+          {o.role}{" "}
+          <span style={{ color: "var(--ink-3)", fontWeight: 400, fontFamily: "var(--mono)", fontSize: 12 }}>· {o.company}</span>
+          {o.urgent && !isSkipped && !isApplied ? <Urgent /> : null}
+        </div>
+        <div className="or-sub">{o.stage} · {o.platform} · {o.age} old · {o.location}</div>
+        <div className="or-tags">
+          {o.stack.map((s) => <span className="tagchip" key={s}>{s}</span>)}
+          {o.referral && !isSkipped && (
+            <span className="ref">
+              <span style={{ width: 12, height: 12, display: "inline-block" }}><Icon name="referral" /></span> Referral available
+            </span>
+          )}
+        </div>
+      </div>
+      <div className="or-act">
+        {isSkipped ? (
+          <span className="pill withdrawn" style={{ fontSize: 11 }}>Skipped</span>
+        ) : isApplied ? (
+          <div className="opp-app-status">
+            <span className={"pill app-" + (appStatus ?? "applied")} style={{ fontSize: 11 }}>
+              <span className="pdot" style={{ background: "currentColor" }} />
+              {appStatusLabel}
+            </span>
+            <button className="btn btn-quiet btn-sm" type="button" onClick={(e) => { e.stopPropagation(); openOpp(o); }}>View</button>
+          </div>
+        ) : (
+          <>
+            <button className="btn btn-quiet btn-sm" type="button" onClick={(e) => { e.stopPropagation(); openOpp(o); }}>View ▾</button>
+            <button className="btn btn-quiet btn-sm" type="button" style={{ color: "var(--ink-4)" }} onClick={(e) => handleSkip(e, o.id)}>Skip</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 interface UndoState { id: string; timer: ReturnType<typeof setTimeout> }
 
@@ -88,6 +166,7 @@ function BulkApplySheet({
 
 export default function Opportunities({ openOpp, selectedId }: { openOpp: (o: Opp) => void; selectedId?: string | null }) {
   const [filter, setFilter] = useState("All");
+  const [groupByMission, setGroupByMission] = useState(false);
   // Seed with opps already skipped in data + session-skipped
   const [skipped, setSkipped] = useState<Set<string>>(() => new Set(OPPS.filter(o => o.skipped).map(o => o.id)));
   const [fading, setFading] = useState<Set<string>>(new Set());
@@ -181,6 +260,13 @@ export default function Opportunities({ openOpp, selectedId }: { openOpp: (o: Op
             </button>
           )}
           <button
+            className={"btn btn-sm " + (groupByMission ? "btn-primary" : "btn-ghost")}
+            onClick={() => setGroupByMission((g) => !g)}
+            style={{ fontSize: 12 }}
+          >
+            {groupByMission ? "Flat view" : "Group by mission"}
+          </button>
+          <button
             className="btn btn-ghost btn-sm"
             onClick={() => setBulkOpen(true)}
             disabled={bulkCandidates.length === 0}
@@ -193,72 +279,44 @@ export default function Opportunities({ openOpp, selectedId }: { openOpp: (o: Op
       <div className="opp-list">
         {visibleList.length === 0 ? (
           <EmptyState>No opportunities match your current filters. Adjust the IPS minimum or add role types in Settings.</EmptyState>
-        ) : visibleList.map((o) => {
-          const isSkipped = skipped.has(o.id);
-          const isFading = fading.has(o.id);
-          const existingApp = APPLIED_MAP.get(o.id);
-          const isSessionApplied = sessionApplied.has(o.id);
-          const isApplied = !!existingApp || isSessionApplied;
-          const appStatus = existingApp?.status ?? (isSessionApplied ? "applied" : null);
-          const appStatusLabel = appStatus ? (APP_STATUS_LABELS[appStatus] ?? appStatus) : null;
-
-          return (
-            <div
-              className={[
-                "opp-row",
-                selectedId === o.id ? "sel" : "",
-                isFading ? "fading" : "",
-                isApplied && !isSkipped ? "already-applied" : "",
-              ].filter(Boolean).join(" ")}
-              key={o.id}
-              onClick={() => !isSkipped && openOpp(o)}
-              style={{ cursor: isSkipped ? "default" : "pointer" }}
-            >
-              <IPSChip score={o.ips} size="lg" />
-              <div className="or-m">
-                <div className="or-role">
-                  {o.role}{" "}
-                  <span style={{ color: "var(--ink-3)", fontWeight: 400, fontFamily: "var(--mono)", fontSize: 12 }}>· {o.company}</span>
-                  {o.urgent && !isSkipped && !isApplied ? <Urgent /> : null}
+        ) : groupByMission ? (
+          // Group by mission view
+          (() => {
+            const groups: Array<{ missionId: string | null; label: string; items: typeof visibleList }> = [];
+            const seen = new Set<string | null>();
+            // Preserve IPS sort within groups; group order = missions order then null
+            const orderedMissionIds = [...MISSIONS.map((m) => m.id), null];
+            for (const mid of orderedMissionIds) {
+              const items = visibleList.filter((o) => o.mission === mid);
+              if (items.length > 0) {
+                seen.add(mid);
+                groups.push({ missionId: mid, label: mid ? (MISSION_LABELS[mid] ?? mid) : "No mission", items });
+              }
+            }
+            return groups.map(({ missionId, label, items }) => (
+              <div key={missionId ?? "__none__"} className="mission-group">
+                <div className="mg-head">
+                  <span className="mg-label">{label}</span>
+                  <span className="mg-count">{items.length}</span>
+                  <span className="ln" />
                 </div>
-                <div className="or-sub">{o.stage} · {o.platform} · {o.age} old · {o.location}</div>
-                <div className="or-tags">
-                  {o.stack.map((s) => <span className="tagchip" key={s}>{s}</span>)}
-                  {o.referral && !isSkipped && (
-                    <span className="ref">
-                      <span style={{ width: 12, height: 12, display: "inline-block" }}><Icon name="referral" /></span> Referral available
-                    </span>
-                  )}
-                </div>
+                {items.map((o) => <OppRow key={o.id} o={o} selectedId={selectedId} fading={fading} skipped={skipped} applied={APPLIED_MAP} sessionApplied={sessionApplied} openOpp={openOpp} handleSkip={handleSkip} />)}
               </div>
-              <div className="or-act">
-                {isSkipped ? (
-                  <span className="pill withdrawn" style={{ fontSize: 11 }}>Skipped</span>
-                ) : isApplied ? (
-                  <div className="opp-app-status">
-                    <span className={"pill app-" + (appStatus ?? "applied")} style={{ fontSize: 11 }}>
-                      <span className="pdot" style={{ background: "currentColor" }} />
-                      {appStatusLabel}
-                    </span>
-                    <button className="btn btn-quiet btn-sm" type="button" onClick={(e) => { e.stopPropagation(); openOpp(o); }}>View</button>
-                  </div>
-                ) : (
-                  <>
-                    <button className="btn btn-quiet btn-sm" type="button" onClick={(e) => { e.stopPropagation(); openOpp(o); }}>View ▾</button>
-                    <button
-                      className="btn btn-quiet btn-sm"
-                      type="button"
-                      style={{ color: "var(--ink-4)" }}
-                      onClick={(e) => handleSkip(e, o.id)}
-                    >
-                      Skip
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          );
-        })}
+            ));
+          })()
+        ) : visibleList.map((o) => (
+          <OppRow
+            key={o.id}
+            o={o}
+            selectedId={selectedId}
+            fading={fading}
+            skipped={skipped}
+            applied={APPLIED_MAP}
+            sessionApplied={sessionApplied}
+            openOpp={openOpp}
+            handleSkip={handleSkip}
+          />
+        ))}
       </div>
     </div>
 

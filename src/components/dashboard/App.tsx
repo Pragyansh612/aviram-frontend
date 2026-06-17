@@ -5,8 +5,10 @@ import { Sidebar, MobileTabBar } from "./shared";
 import Entry from "./Entry";
 import DetailPanel from "./DetailPanel";
 import CampaignPanel from "./CampaignPanel";
+import VaultPanel from "./VaultPanel";
 import type { Opp } from "./DetailPanel";
 import type { Campaign } from "./CampaignPanel";
+import type { VaultEntry } from "./VaultPanel";
 import {
   clearFirstTimeBrief,
   getStoredProfile,
@@ -61,6 +63,7 @@ export default function DashboardApp() {
   const [running, setRunning] = useState(true);
   const [opp, setOpp] = useState<Opp | null>(null);
   const [campaign, setCampaign] = useState<Campaign | null>(null);
+  const [vaultEntry, setVaultEntry] = useState<VaultEntry | null>(null);
 
   useEffect(() => {
     if (!isAuthed()) {
@@ -82,7 +85,7 @@ export default function DashboardApp() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const closePanels = () => { setOpp(null); setCampaign(null); };
+  const closePanels = () => { setOpp(null); setCampaign(null); setVaultEntry(null); };
 
   const finishBrief = () => {
     markBriefSeen();
@@ -92,8 +95,9 @@ export default function DashboardApp() {
 
   const navigate = (p: PageId) => { setPage(p); closePanels(); };
   const goTo = (p: string) => { finishBrief(); navigate(p as PageId); };
-  const openOpp = (o: Opp) => { setCampaign(null); setOpp(o); };
-  const openCampaign = (c: Campaign) => { setOpp(null); setCampaign(c); };
+  const openOpp = (o: Opp) => { setCampaign(null); setVaultEntry(null); setOpp(o); };
+  const openCampaign = (c: Campaign) => { setOpp(null); setVaultEntry(null); setCampaign(c); };
+  const openVault = (v: VaultEntry) => { setOpp(null); setCampaign(null); setVaultEntry(v); };
 
   if (!ready) return null;
 
@@ -109,7 +113,7 @@ export default function DashboardApp() {
     case "applications":  content = <Applications openOpp={openOpp} />; break;
     case "resume":        content = <ResumeLab />; break;
     case "intelligence":  content = <CareerIntelligence />; break;
-    case "vault":         content = <ResearchVault />; break;
+    case "vault":         content = <ResearchVault openVault={openVault} selectedId={vaultEntry?.id} />; break;
     case "outreach":      content = <Outreach openCampaign={openCampaign} selectedId={campaign?.id} />; break;
     case "prep":          content = <InterviewPrep />; break;
     case "settings":      content = <Settings running={running} toggleRunning={() => setRunning(r => !r)} />; break;
@@ -151,6 +155,7 @@ export default function DashboardApp() {
       <MobileTabBar page={page} setPage={navigate} />
       {opp && <DetailPanel opp={opp} onClose={closePanels} />}
       {campaign && <CampaignPanel campaign={campaign} onClose={closePanels} />}
+      {vaultEntry && <VaultPanel entry={vaultEntry} onClose={closePanels} />}
       <ToastHost />
     </div>
   );

@@ -207,6 +207,12 @@ export const PREP = {
   ],
 };
 
+export const ACTIVITY_RANGES: Record<string, { discovered: number; shortlisted: number; submitted: number; referral: number; interview: number }> = {
+  "24h": { discovered: 47, shortlisted: 12, submitted: 4, referral: 1, interview: 1 },
+  "7d":  { discovered: 183, shortlisted: 48, submitted: 16, referral: 4, interview: 3 },
+  "30d": { discovered: 612, shortlisted: 184, submitted: 52, referral: 11, interview: 8 },
+};
+
 export const MISSIONS = [
   { id: "remote_backend", title: "Remote Backend",       done: 12, target: 20, predicted: 3.4 },
   { id: "series_a",       title: "Series A Startups",    done: 7,  target: 10, predicted: 2.1 },

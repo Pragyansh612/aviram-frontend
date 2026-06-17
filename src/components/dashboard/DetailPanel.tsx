@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { IPSChip, ScoreTree } from "./shared";
 import { Icon } from "./icons";
 import { showToast } from "./Toast";
@@ -27,6 +28,11 @@ export default function DetailPanel({ opp, onClose }: { opp: Opp; onClose: () =>
           <button className="dp-close" onClick={onClose} aria-label="Close panel">
             <span style={{ width: 16, height: 16, display: "block" }}><Icon name="x" /></span>
           </button>
+        </div>
+        <div className="dp-fullpage-bar">
+          <Link className="dp-fullpage-link" href={`/opportunities/${opp.id}`} target="_blank" rel="noopener noreferrer">
+            Open full page →
+          </Link>
         </div>
         <div className="detail-body">
           {opp.skipped && (
