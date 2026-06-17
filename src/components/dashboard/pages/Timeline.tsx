@@ -1,8 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TIMELINE } from "@/components/dashboard/data";
 import { IPSChip, PageHead, EmptyState, useStagger } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
+import { getSkippedOpps, type SkippedOpp } from "@/components/dashboard/session";
 import type { PageId } from "@/components/dashboard/shared";
 
 const arrIcon: React.CSSProperties = { width: 14, height: 14, display: "inline-block" };
@@ -20,13 +21,47 @@ const TL_ICON: Record<string, string> = {
 
 export default function Timeline({ goTo }: { goTo: (p: PageId) => void }) {
   const [filter, setFilter] = useState("all");
+  const [runtimeSkipped, setRuntimeSkipped] = useState<SkippedOpp[]>([]);
+
+  // Refresh skipped list each time Timeline mounts (picks up skips from Opportunities page)
+  useEffect(() => {
+    setRuntimeSkipped(getSkippedOpps());
+  }, []);
+
   const match = (e: typeof TIMELINE[0]["events"][0]) =>
     filter === "all" ? true : filter === "response" ? e.type === "response" : e.type === filter;
 
-  const groups = TIMELINE.map((group) => ({
+  // Inject runtime-skipped opps as synthetic events into "Today" group
+  const syntheticSkipped: typeof TIMELINE[0]["events"] = runtimeSkipped.map((s) => ({
+    type: "skipped",
+    time: s.time,
+    title: "Skipped",
+    company: s.company,
+    role: s.role,
+    extra: "",
+    action: null as unknown as string,
+    ips: null as unknown as number,
+  }));
+
+  const todayGroup = {
+    day: "Today",
+    events: syntheticSkipped.filter(() => filter === "all" || filter === "skipped"),
+  };
+
+  const staticGroups = TIMELINE.map((group) => ({
     day: group.day,
     events: group.events.filter(match),
   })).filter((g) => g.events.length > 0);
+
+  // Merge: if static data already has "Today" merge into it, else prepend if non-empty
+  const groups = (() => {
+    const existing = staticGroups.find((g) => g.day === "Today");
+    if (existing) {
+      existing.events = [...todayGroup.events, ...existing.events];
+      return staticGroups;
+    }
+    return todayGroup.events.length > 0 ? [todayGroup, ...staticGroups] : staticGroups;
+  })();
 
   const hasAnyEvents = TIMELINE.some((g) => g.events.length > 0);
   const totalEvents = groups.reduce((n, g) => n + g.events.length, 0);

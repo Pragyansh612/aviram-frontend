@@ -3,7 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AuthShell from "@/components/auth/AuthShell";
-import { markAuthed } from "@/components/dashboard/session";
+import { markAuthed, saveStoredProfile, getStoredProfile } from "@/components/dashboard/session";
 
 export default function SignupPageClient() {
   const router = useRouter();
@@ -13,6 +13,9 @@ export default function SignupPageClient() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     markAuthed();
+    // Persist email so Settings Profile can show the real address after onboarding.
+    const existing = getStoredProfile();
+    saveStoredProfile({ name: "", email, phone: "", linkedin: "", roles: "", locations: "", salaryFloor: "", ...existing });
     router.push("/onboarding");
   };
 

@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { OPPS, MISSIONS, APPS } from "@/components/dashboard/data";
 import { IPSChip, Urgent, PageHead, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
+import { addSkippedOpp, removeSkippedOpp } from "@/components/dashboard/session";
 import type { Opp } from "@/components/dashboard/DetailPanel";
 
 const OPP_FILTERS = ["All", "Remote", "Referral available", "⚡ Urgent", "IPS ≥ 80", "Series A–B"];
@@ -187,6 +188,16 @@ export default function Opportunities({ openOpp, selectedId }: { openOpp: (o: Op
     const fadeTimer = setTimeout(() => {
       setSkipped((prev) => new Set(prev).add(id));
       setFading((prev) => { const n = new Set(prev); n.delete(id); return n; });
+      // Persist to sessionStorage so Timeline can render a synthetic Skipped entry
+      const opp = OPPS.find((o) => o.id === id);
+      if (opp) {
+        addSkippedOpp({
+          id: opp.id,
+          company: opp.company,
+          role: opp.role,
+          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        });
+      }
     }, 380);
 
     const undoTimer = setTimeout(() => { setUndo(null); }, 3000);
@@ -201,6 +212,7 @@ export default function Opportunities({ openOpp, selectedId }: { openOpp: (o: Op
     if (ft) clearTimeout(ft);
     setFading((prev) => { const n = new Set(prev); n.delete(undo.id); return n; });
     setSkipped((prev) => { const n = new Set(prev); n.delete(undo.id); return n; });
+    removeSkippedOpp(undo.id);
     setUndo(null);
   };
 
@@ -214,6 +226,12 @@ export default function Opportunities({ openOpp, selectedId }: { openOpp: (o: Op
       case "Series A–B": return /Series [AB]|Seed/.test(o.stage);
       default: return true;
     }
+  }).sort((a, b) => {
+    // Skipped items always sort to the bottom within the "All" filter
+    const aSkip = skipped.has(a.id) ? 1 : 0;
+    const bSkip = skipped.has(b.id) ? 1 : 0;
+    if (aSkip !== bSkip) return aSkip - bSkip;
+    return b.ips - a.ips;
   });
 
   // Top 10 non-skipped, non-already-applied opps by IPS for bulk apply
@@ -286,7 +304,9 @@ export default function Opportunities({ openOpp, selectedId }: { openOpp: (o: Op
             // Preserve IPS sort within groups; group order = missions order then null
             const orderedMissionIds = [...MISSIONS.map((m) => m.id), null];
             for (const mid of orderedMissionIds) {
-              const items = visibleList.filter((o) => o.mission === mid);
+              const items = visibleList
+                .filter((o) => o.mission === mid)
+                .sort((a, b) => b.ips - a.ips);
               if (items.length > 0) {
                 groups.push({ missionId: mid, label: mid ? (MISSION_LABELS[mid] ?? mid) : "No mission", items });
               }

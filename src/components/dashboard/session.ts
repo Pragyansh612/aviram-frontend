@@ -6,6 +6,7 @@ export const PROFILE_KEY = "aviram-profile";
 
 export type StoredProfile = {
   name: string;
+  email: string;
   phone: string;
   linkedin: string;
   roles: string;
@@ -68,6 +69,32 @@ export function getDisplayName(): string {
   const p = getStoredProfile();
   if (p?.name) return p.name.split(/\s+/)[0] || p.name;
   return "there";
+}
+
+// ---- runtime-skipped opportunities (persisted in sessionStorage so Timeline sees them) ----
+export const SKIPPED_OPPS_KEY = "aviram-skipped-opps";
+
+export type SkippedOpp = { id: string; company: string; role: string; time: string };
+
+export function getSkippedOpps(): SkippedOpp[] {
+  try {
+    const raw = sessionStorage.getItem(SKIPPED_OPPS_KEY);
+    return raw ? JSON.parse(raw) as SkippedOpp[] : [];
+  } catch { return []; }
+}
+
+export function addSkippedOpp(entry: SkippedOpp): void {
+  try {
+    const list = getSkippedOpps().filter((s) => s.id !== entry.id);
+    sessionStorage.setItem(SKIPPED_OPPS_KEY, JSON.stringify([entry, ...list]));
+  } catch {}
+}
+
+export function removeSkippedOpp(id: string): void {
+  try {
+    const list = getSkippedOpps().filter((s) => s.id !== id);
+    sessionStorage.setItem(SKIPPED_OPPS_KEY, JSON.stringify(list));
+  } catch {}
 }
 
 // ---- login timestamp (for "active for X hours" computation) ----

@@ -24,6 +24,7 @@ const STEP_LABEL: Record<Step, string> = {
 
 const emptyProfile: StoredProfile = {
   name: "",
+  email: "",
   phone: "",
   linkedin: "",
   roles: "Backend Engineer, Distributed Systems",

@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { USER, MISSIONS } from "@/components/dashboard/data";
+import { getStoredProfile } from "@/components/dashboard/session";
 import { PageHead } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 import { showToast } from "@/components/dashboard/Toast";
@@ -37,14 +38,17 @@ function EditableRow({ label, value, onChange }: { label: string; value: string;
 export default function Settings({ running, toggleRunning }: { running: boolean; toggleRunning: () => void }) {
   const [autoRef, setAutoRef] = useState(false);
 
-  // Editable profile state
-  const [profile, setProfile] = useState({
-    Name: USER.name,
-    Email: USER.email,
-    Phone: USER.phone,
-    LinkedIn: USER.linkedin,
-    GitHub: USER.github,
-    Portfolio: USER.portfolio,
+  // Editable profile state — prefer real data from onboarding/signup, fall back to mock USER
+  const [profile, setProfile] = useState(() => {
+    const stored = getStoredProfile();
+    return {
+      Name:      stored?.name      || USER.name,
+      Email:     stored?.email     || USER.email,
+      Phone:     stored?.phone     || USER.phone,
+      LinkedIn:  stored?.linkedin  || USER.linkedin,
+      GitHub:    USER.github,
+      Portfolio: USER.portfolio,
+    };
   });
 
   // Editable preferences state
