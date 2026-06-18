@@ -39,7 +39,20 @@ export function clearFirstTimeBrief(): void {
 }
 
 export function isAuthed(): boolean {
-  try { return localStorage.getItem(AUTH_KEY) === "1"; } catch { return false; }
+  try {
+    if (localStorage.getItem("aviram-access-token")) return true;
+    return false;
+  } catch { return false; }
+}
+
+export function clearAuth(): void {
+  try {
+    localStorage.removeItem("aviram-access-token");
+    localStorage.removeItem("aviram-refresh-token");
+    localStorage.removeItem("aviram-user-id");
+    localStorage.removeItem("aviram-user-email");
+    localStorage.removeItem(AUTH_KEY);
+  } catch {}
 }
 
 export function markAuthed(): void {
@@ -101,6 +114,19 @@ export function removeSkippedOpp(id: string): void {
 export const OPEN_PREP_BRIEF_KEY = "aviram-open-prep-brief";
 export const OPEN_APPLICATION_KEY = "aviram-open-application";
 export const HIGHLIGHT_OUTREACH_DRAFT_KEY = "aviram-highlight-outreach-draft";
+export const PENDING_PAGE_KEY = "aviram-pending-page";
+
+export function requestNavigatePage(page: string): void {
+  try { sessionStorage.setItem(PENDING_PAGE_KEY, page); } catch {}
+}
+
+export function consumeNavigatePage(): string | null {
+  try {
+    const p = sessionStorage.getItem(PENDING_PAGE_KEY);
+    if (p) sessionStorage.removeItem(PENDING_PAGE_KEY);
+    return p;
+  } catch { return null; }
+}
 
 export function requestOpenPrepBrief(): void {
   try { sessionStorage.setItem(OPEN_PREP_BRIEF_KEY, "1"); } catch {}
@@ -289,11 +315,59 @@ export function getActiveForDuration(): string | null {
   } catch { return null; }
 }
 
+// ---- wake screen (post-login transition before entry sequence) ----
+const WAKE_KEY = "aviram-wake";
+
+export function requestWakeScreen(): void {
+  try { sessionStorage.setItem(WAKE_KEY, "1"); } catch {}
+}
+
+export function consumeWakeScreen(): boolean {
+  try {
+    const v = sessionStorage.getItem(WAKE_KEY) === "1";
+    if (v) sessionStorage.removeItem(WAKE_KEY);
+    return v;
+  } catch { return false; }
+}
+
+// ---- last sync timestamp (Command Center "Updated X min ago") ----
+const LAST_SYNC_KEY = "aviram-last-sync";
+
+export function touchLastSync(): void {
+  try { localStorage.setItem(LAST_SYNC_KEY, String(Date.now())); } catch {}
+}
+
+export function getLastSyncAgo(): string {
+  try {
+    const raw = localStorage.getItem(LAST_SYNC_KEY);
+    if (!raw) return "just now";
+    const min = Math.floor((Date.now() - parseInt(raw, 10)) / 60_000);
+    if (min < 1) return "just now";
+    if (min === 1) return "1 min ago";
+    return `${min} min ago`;
+  } catch { return "just now"; }
+}
+
+// ---- Morning Brief variant preference ----
+export const BRIEF_VARIANT_KEY = "aviram-brief-variant";
+
+export function getBriefVariant(): "letter" | "terminal" {
+  try {
+    const v = localStorage.getItem(BRIEF_VARIANT_KEY);
+    return v === "terminal" ? "terminal" : "letter";
+  } catch { return "letter"; }
+}
+
+export function saveBriefVariant(v: "letter" | "terminal"): void {
+  try { localStorage.setItem(BRIEF_VARIANT_KEY, v); } catch {}
+}
+
 /** Fresh login — show Morning Brief again. */
 export function beginLoginSession(): void {
   clearBriefSeen();
   clearFirstTimeBrief();
   recordLoginTime();
+  requestWakeScreen();
 }
 
 /** Onboarding finished — first-time Morning Brief + entry sequence. */
@@ -303,4 +377,5 @@ export function beginFirstDashboardSession(): void {
   markOnboardingComplete();
   recordLoginTime();
   setCalibrationCount(0);
+  requestWakeScreen();
 }

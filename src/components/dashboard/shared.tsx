@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { Icon } from "./icons";
 import { USER } from "./data";
 import { getCalibrationCount } from "./session";
+import { useDashboard } from "@/contexts/DashboardContext";
 
 export type PageId =
   | "command" | "timeline" | "opportunities" | "applications"
@@ -188,8 +189,9 @@ export function Sidebar({ page, setPage, running, toggleRunning, toggleTheme }: 
   toggleTheme: () => void;
 }) {
   const [confirmPause, setConfirmPause] = useState(false);
-  const u = USER;
-  const calibration = getCalibrationCount() ?? u.calibration;
+  const { userMeta, apiLive } = useDashboard();
+  const u = apiLive ? userMeta : USER;
+  const calibration = apiLive ? u.calibration : (getCalibrationCount() ?? u.calibration);
 
   const handleStatusClick = () => {
     if (running) setConfirmPause(true);

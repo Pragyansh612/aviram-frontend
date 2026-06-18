@@ -1,0 +1,253 @@
+import type { Opp } from "@/components/dashboard/DetailPanel";
+
+// ── Backend response shapes (subset) ─────────────────────────────────────────
+
+export type TokenResponse = {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+  expires_in: number;
+  user_id: string;
+  email: string;
+};
+
+export type ProfileResponse = {
+  id: string;
+  full_name: string | null;
+  email: string;
+  phone: string | null;
+  linkedin_url: string | null;
+  github_url: string | null;
+  website_url: string | null;
+  bio: string | null;
+};
+
+export type PreferencesResponse = {
+  desired_roles: string[];
+  preferred_locations: string[];
+  opportunity_type: string;
+  remote_preference: string;
+  min_salary: number | null;
+  skills: string[];
+  industries: string[];
+};
+
+export type IPSJob = {
+  job_id: string;
+  job_title: string;
+  company: string;
+  platform: string;
+  ips_score: number;
+  apply_url: string;
+  location: string | null;
+  remote_type: string | null;
+  posted_at: string | null;
+  components: {
+    semantic_score: number;
+    urgency_score: number;
+    referral_bonus: number;
+    company_rate: number | null;
+  };
+};
+
+export type ApplyQueueResponse = {
+  jobs: IPSJob[];
+  total_candidates: number;
+  returned: number;
+};
+
+export type AgentStatusResponse = {
+  is_enabled: boolean;
+  is_paused: boolean;
+  pause_reason: string | null;
+  pending_approvals: number;
+  ips_threshold: number | null;
+  daily_cap: number | null;
+};
+
+export type ApplicationRow = {
+  id: string;
+  job_id: string;
+  platform: string;
+  status: string;
+  applied_at: string | null;
+  match_score: number | null;
+  resume_version: number | null;
+};
+
+export type TimelineEntry = {
+  application_id: string;
+  job_title: string;
+  company: string;
+  platform: string;
+  status: string;
+  outcome: string | null;
+  match_score: number | null;
+  applied_at: string | null;
+  apply_url: string;
+};
+
+export type AnalyticsSummary = {
+  total_applications: number;
+  submitted?: number;
+  interviews?: number;
+  offers?: number;
+  overall_response_rate?: number;
+  overall_offer_rate?: number;
+  applications_this_week?: number;
+};
+
+export type ReferralRequest = {
+  id: string;
+  status: string;
+  company?: string;
+  company_name?: string;
+  job_title?: string;
+  connection_name?: string;
+  draft_message?: string;
+};
+
+export type OutreachCampaign = {
+  id: string;
+  name: string;
+  status: string;
+  company?: string;
+};
+
+export type InterviewSession = {
+  id: string;
+  company_name: string;
+  job_title: string;
+  prep_mode: string;
+};
+
+export type PlatformCredential = {
+  id: string;
+  platform: string;
+  email: string;
+};
+
+export type CalibrationStatus = {
+  applications_count?: number;
+  apps_done?: number;
+  target?: number;
+  archetype?: string;
+  archetype_label?: string;
+  model_status?: string;
+  in_calibration?: boolean;
+  pct?: number;
+};
+
+export function mapCalibration(cal: CalibrationStatus | null | undefined) {
+  return {
+    count: cal?.apps_done ?? cal?.applications_count ?? 0,
+    target: cal?.target ?? 25,
+    archetype: cal?.archetype ?? "mid_backend",
+    archetypeLabel: cal?.archetype_label,
+  };
+}
+
+// ── Mappers ─────────────────────────────────────────────────────────────────
+
+function ipsDisplay(score: number): number {
+  return Math.round(Math.min(0.9, Math.max(0.01, score)) * 100);
+}
+
+function ageFromPosted(posted: string | null): string {
+  if (!posted) return "recent";
+  const diff = Date.now() - new Date(posted).getTime();
+  const h = Math.floor(diff / 3_600_000);
+  if (h < 24) return `${Math.max(1, h)}h`;
+  const d = Math.floor(h / 24);
+  return `${d}d`;
+}
+
+export function mapIpsJobToOpp(job: IPSJob, index: number): Opp {
+  const ips = ipsDisplay(job.ips_score);
+  const urgent = (job.components?.urgency_score ?? 0) >= 0.75;
+  const referral = (job.components?.referral_bonus ?? 0) > 0;
+  const match = Math.round((job.components?.semantic_score ?? 0.7) * 100);
+  const resp = job.components?.company_rate != null
+    ? Math.round(job.components.company_rate * 100)
+    : 15;
+
+  return {
+    id: job.job_id || `api-${index}`,
+    role: job.job_title,
+    company: job.company,
+    stage: "—",
+    ips,
+    platform: job.platform || "ATS",
+    age: ageFromPosted(job.posted_at),
+    urgent,
+    remote: job.remote_type === "remote" || job.remote_type === "hybrid",
+    location: job.location || "—",
+    stack: [] as string[],
+    referral,
+    refPath: referral ? "Referral path available" : null,
+    mission: null,
+    jd: ["Full job description available on the company careers page."],
+    tree: {
+      match,
+      urgency: Math.round((job.components?.urgency_score ?? 0.5) * 100),
+      referral: referral ? "Found" : "Not found",
+      response: resp,
+    },
+    respRate: resp,
+    fundedDays: urgent ? 14 : null,
+    skipped: false,
+    skipReason: "",
+  } as Opp;
+}
+
+export function mapApplicationStatus(status: string): string {
+  switch (status) {
+    case "submitted": return "applied";
+    case "failed": return "rejected";
+    case "manual_required":
+    case "assisted":
+    case "quality_review":
+    case "referral_pending":
+    case "pending":
+      return "applied";
+    default: return status;
+  }
+}
+
+export function mapApplicationLabel(status: string): string {
+  switch (status) {
+    case "submitted": return "Applied";
+    case "failed": return "Rejected";
+    case "manual_required": return "Manual Required";
+    case "assisted": return "Assisted";
+    case "quality_review": return "Quality Review";
+    case "referral_pending": return "Referral Pending";
+    case "pending": return "Pending";
+    default: return status;
+  }
+}
+
+export function mapTimelineEntry(e: TimelineEntry) {
+  const ips = e.match_score != null ? ipsDisplay(e.match_score) : null;
+  let type = "applied";
+  let title = "Application Submitted";
+  if (e.outcome === "interview") { type = "interview"; title = "Interview Scheduled"; }
+  else if (e.outcome === "rejected") { type = "skipped"; title = "Rejected"; }
+  else if (e.outcome === "offer") { type = "response"; title = "Offer Received"; }
+
+  const time = e.applied_at
+    ? new Date(e.applied_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : "—";
+
+  return {
+    time,
+    type,
+    title,
+    company: e.company,
+    role: e.job_title,
+    extra: `${e.platform}${ips != null ? ` · IPS ${ips}` : ""}`,
+    action: type === "interview" ? "Open Brief" : "View",
+    ips,
+    appId: e.application_id,
+  };
+}

@@ -76,14 +76,14 @@
   --ink-3:      #8E968A;
   --ink-4:      #5E6659;
 
-  --accent:     #E0A35C;
-  --accent-2:   #EBB373;
+  --accent:     #C47A35;
+  --accent-2:   #D48A45;
   --accent-tint:rgba(224,163,92,0.13);
   --accent-fg:  #14110B;
   --accent-edge:rgba(224,163,92,0.30);
 
-  --clay:       #E0A35C;
-  --clay-2:     #EBB373;
+  --clay:       #C47A35;
+  --clay-2:     #D48A45;
   --clay-tint:  rgba(224,163,92,0.14);
   --skip:       #D98A66;
   --skip-tint:  rgba(217,138,102,0.14);
@@ -804,6 +804,13 @@ section { position: relative; }
 .active-system .as-line.l2 { animation: asIn .7s var(--ease-out) .7s forwards; color: var(--ink); }
 .active-system .as-line b { color: var(--accent); font-weight: 600; }
 .active-system .as-cta { margin-top: 28px; opacity: 0; animation: asIn .7s var(--ease-out) 1.05s forwards; }
+
+/* Post-login wake transition */
+.wake-stage .wake-feed { margin-top: 18px; }
+.wake-row { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 12px; color: var(--ink-3); padding: 5px 0; opacity: 0; transform: translateY(3px); transition: opacity .35s var(--ease-out), transform .35s var(--ease-out); }
+.wake-row.in { opacity: 1; transform: none; }
+.wake-row .wk { color: var(--accent); }
+.wake-row .ok { margin-left: auto; color: var(--accent); font-size: 11px; }
 @keyframes asIn { to { opacity: 1; transform: none; } }
 .as-caret { display: inline-block; width: 7px; height: 15px; background: var(--accent); margin-left: 3px; vertical-align: -2px; animation: blink 1s step-end infinite; }
 
@@ -815,6 +822,7 @@ section { position: relative; }
 .variant-switch { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .variant-switch button { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.04em; padding: 7px 12px; background: transparent; border: none; cursor: pointer; color: var(--ink-3); transition: all .18s var(--ease); }
 .variant-switch button.on { background: var(--accent); color: var(--accent-fg); }
+.settings-variant { flex-shrink: 0; }
 .brief-scroll { flex: 1; display: flex; justify-content: center; padding: 10px 30px 60px; }
 .cu { font-variant-numeric: tabular-nums; font-family: var(--mono); }
 
@@ -1015,23 +1023,17 @@ section { position: relative; }
 .undo-pill:hover { color: var(--accent); border-color: var(--accent-edge); }
 
 /* ============================================================
-   BULK APPLY OVERLAY
+   BULK APPLY PANEL (right-side, no modal)
    ============================================================ */
-.bulk-scrim { position: fixed; inset: 0; background: rgba(20,19,15,0.38); z-index: 200; display: grid; place-items: center; animation: scrimIn .2s var(--ease) forwards; }
-[data-theme="dark"] .bulk-scrim { background: rgba(0,0,0,0.55); }
-.bulk-sheet { background: var(--paper); border: 1px solid var(--line); border-radius: 16px; width: min(620px, 94vw); max-height: 86vh; overflow-y: auto; animation: sheetIn .28s var(--ease-out); box-shadow: 0 8px 32px rgba(20,19,15,0.10); }
-@keyframes sheetIn { from { opacity: 0; transform: scale(.97) translateY(10px); } to { opacity: 1; transform: none; } }
-.bulk-head { padding: 22px 24px 18px; border-bottom: 1px solid var(--line-soft); display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
-.bulk-head h2 { font-family: var(--serif); font-size: 24px; letter-spacing: -0.01em; line-height: 1.1; }
-.bulk-head .bh-sub { font-size: 13px; color: var(--ink-3); margin-top: 6px; }
-.bulk-body { padding: 0; }
-.bulk-row { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; padding: 14px 24px; border-bottom: 1px solid var(--line-soft); }
-.bulk-row:last-child { border-bottom: none; }
-.bulk-row .br-co { font-size: 14px; font-weight: 500; letter-spacing: -0.01em; }
-.bulk-row .br-role { font-family: var(--mono); font-size: 11px; color: var(--ink-3); margin-top: 2px; }
-.bulk-row .br-variant { font-family: var(--mono); font-size: 11px; color: var(--ink-3); white-space: nowrap; }
-.bulk-foot { padding: 18px 24px; border-top: 1px solid var(--line-soft); display: flex; align-items: center; gap: 10px; background: var(--paper-2); border-radius: 0 0 16px 16px; }
+.bulk-panel .bulk-row { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--line-soft); }
+.bulk-panel .bulk-row:last-child { border-bottom: none; }
+.bulk-panel .br-co { font-size: 14px; font-weight: 500; letter-spacing: -0.01em; }
+.bulk-panel .br-role { font-family: var(--mono); font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+.bulk-panel .br-variant { font-family: var(--mono); font-size: 11px; color: var(--ink-3); white-space: nowrap; }
+.bulk-foot.panel-foot { padding: 18px 24px; border-top: 1px solid var(--line-soft); display: flex; align-items: center; gap: 10px; background: var(--paper-2); position: sticky; bottom: 0; }
 .bulk-count { font-family: var(--mono); font-size: 12px; color: var(--ink-3); margin-left: auto; }
+
+/* Legacy bulk modal styles removed — bulk apply uses detail-panel pattern */
 
 /* ============================================================
    OPP-ROW ALREADY-APPLIED STATE
@@ -1287,6 +1289,7 @@ section { position: relative; }
 .toggle.off i { left: 3px; }
 .conn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; padding: 14px 0; }
 .conn-card { border: 1px solid var(--line); border-radius: 10px; padding: 13px 14px; display: flex; align-items: center; gap: 11px; }
+.conn-card .conn-info { flex: 1; min-width: 0; }
 .conn-card .cdot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .conn-card.on .cdot { background: var(--green-live); }
 .conn-card.off .cdot { background: var(--ink-4); }
@@ -1315,6 +1318,8 @@ section { position: relative; }
 .auth-brand .name { font-family: var(--serif); font-size: 22px; line-height: 1; }
 .auth-title { font-size: clamp(28px, 4vw, 34px); line-height: 1.12; letter-spacing: -0.02em; margin-bottom: 26px; color: var(--ink); }
 .auth-form { display: flex; flex-direction: column; gap: 16px; }
+.auth-error { font-size: 13px; color: var(--skip); margin: 0 0 4px; line-height: 1.45; }
+.auth-hint { font-size: 11px; color: var(--ink-4); margin-top: 4px; display: block; }
 .auth-field { display: flex; flex-direction: column; gap: 7px; }
 .auth-label { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); font-weight: 500; }
 .auth-input {

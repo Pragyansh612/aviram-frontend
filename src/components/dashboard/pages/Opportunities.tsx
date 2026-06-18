@@ -1,10 +1,12 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { OPPS, MISSIONS, APPS } from "@/components/dashboard/data";
 import { IPSChip, Urgent, PageHead, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 import { addSkippedOpp, removeSkippedOpp, addSessionApps, addSessionTimelineEvents, incrementCalibration } from "@/components/dashboard/session";
 import { showToast } from "@/components/dashboard/Toast";
+import BulkApplyPanel from "@/components/dashboard/BulkApplyPanel";
+import { useDashboard } from "@/contexts/DashboardContext";
 import type { Opp } from "@/components/dashboard/DetailPanel";
 
 const OPP_FILTERS = ["All", "Remote", "Referral available", "⚡ Urgent", "IPS ≥ 80", "Series A–B"];
@@ -16,20 +18,21 @@ const MISSION_LABELS: Record<string, string> = Object.fromEntries(
 
 // Map each opp ID to its current application status (if any), derived from APPS data.
 // Uses company + role as the join key (matches the findOppForApp logic in Applications.tsx).
-function buildAppliedMap(): Map<string, { status: string; statusLabel: string }> {
+function buildAppliedMap(
+  apps: typeof APPS,
+  opps: Opp[],
+): Map<string, { status: string; statusLabel: string }> {
   const map = new Map<string, { status: string; statusLabel: string }>();
-  for (const app of APPS) {
+  for (const app of apps) {
     const opp =
-      OPPS.find((o) => o.company === app.company && o.role === app.role) ??
-      OPPS.find((o) => o.company === app.company);
+      opps.find((o) => o.company === app.company && o.role === app.role) ??
+      opps.find((o) => o.company === app.company);
     if (opp && !map.has(opp.id)) {
       map.set(opp.id, { status: app.status, statusLabel: app.statusLabel });
     }
   }
   return map;
 }
-
-const APPLIED_MAP = buildAppliedMap();
 
 // Labels shown on the opp row for each application status
 const APP_STATUS_LABELS: Record<string, string> = {
@@ -119,58 +122,15 @@ function OppRow({
 
 interface UndoState { id: string; timer: ReturnType<typeof setTimeout> }
 
-function BulkApplySheet({
-  opps,
-  onConfirm,
-  onCancel,
-}: {
-  opps: Opp[];
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <div className="bulk-scrim" onClick={onCancel}>
-      <div className="bulk-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="bulk-head">
-          <div>
-            <h2>Apply to top {opps.length}</h2>
-            <p className="bh-sub">
-              Aviram will tailor your resume for each role before submitting. Review and confirm.
-            </p>
-          </div>
-          <button className="dp-close" onClick={onCancel} aria-label="Cancel">
-            <span style={{ width: 16, height: 16, display: "block" }}><Icon name="x" /></span>
-          </button>
-        </div>
-        <div className="bulk-body">
-          {opps.map((o) => (
-            <div className="bulk-row" key={o.id}>
-              <IPSChip score={o.ips} />
-              <div>
-                <div className="br-co">{o.company}</div>
-                <div className="br-role">{o.role} · {o.platform}</div>
-              </div>
-              <div className="br-variant">Variant {pickVariant(o.ips)}</div>
-            </div>
-          ))}
-        </div>
-        <div className="bulk-foot">
-          <button className="btn btn-primary" onClick={onConfirm}>
-            Confirm — apply to all {opps.length}
-          </button>
-          <button className="btn btn-ghost" onClick={onCancel}>Cancel</button>
-          <span className="bulk-count">{opps.length} applications · ~{opps.length * 2} min est.</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function Opportunities({ openOpp, selectedId }: { openOpp: (o: Opp) => void; selectedId?: string | null }) {
+  const { opportunities: apiOpps, applications, apiLive, applyToJob, refresh } = useDashboard();
+  const sourceOpps = apiLive ? apiOpps : (apiOpps.length ? apiOpps : OPPS);
+  const sourceApps = apiLive ? applications : (applications.length ? applications : APPS);
+  const appliedMap = useMemo(() => buildAppliedMap(sourceApps, sourceOpps), [sourceApps, sourceOpps]);
   const [filter, setFilter] = useState("All");
-  const [groupByMission, setGroupByMission] = useState(false);
+  const [groupByMission, setGroupByMission] = useState(true);
   // Seed with opps already skipped in data + session-skipped
-  const [skipped, setSkipped] = useState<Set<string>>(() => new Set(OPPS.filter(o => o.skipped).map(o => o.id)));
+  const [skipped, setSkipped] = useState<Set<string>>(() => new Set(sourceOpps.filter(o => o.skipped).map(o => o.id)));
   const [fading, setFading] = useState<Set<string>>(new Set());
   const [undo, setUndo] = useState<UndoState | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -190,7 +150,7 @@ export default function Opportunities({ openOpp, selectedId }: { openOpp: (o: Op
       setSkipped((prev) => new Set(prev).add(id));
       setFading((prev) => { const n = new Set(prev); n.delete(id); return n; });
       // Persist to sessionStorage so Timeline can render a synthetic Skipped entry
-      const opp = OPPS.find((o) => o.id === id);
+      const opp = sourceOpps.find((o) => o.id === id);
       if (opp) {
         addSkippedOpp({
           id: opp.id,
@@ -217,7 +177,7 @@ export default function Opportunities({ openOpp, selectedId }: { openOpp: (o: Op
     setUndo(null);
   };
 
-  const visibleList = OPPS.filter((o) => {
+  const visibleList = sourceOpps.filter((o) => {
     if (skipped.has(o.id)) return filter === "All";
     switch (filter) {
       case "Remote": return o.remote;
@@ -236,12 +196,23 @@ export default function Opportunities({ openOpp, selectedId }: { openOpp: (o: Op
   });
 
   // Top 10 non-skipped, non-already-applied opps by IPS for bulk apply
-  const bulkCandidates = [...OPPS]
-    .filter((o) => !skipped.has(o.id) && !APPLIED_MAP.has(o.id) && !sessionApplied.has(o.id))
+  const bulkCandidates = [...sourceOpps]
+    .filter((o) => !skipped.has(o.id) && !appliedMap.has(o.id) && !sessionApplied.has(o.id))
     .sort((a, b) => b.ips - a.ips)
     .slice(0, 10);
 
-  const handleBulkConfirm = () => {
+  const handleBulkConfirm = async () => {
+    if (apiLive) {
+      let ok = 0;
+      for (const o of bulkCandidates) {
+        const res = await applyToJob(o.id);
+        if (res.ok) ok++;
+      }
+      setBulkOpen(false);
+      showToast(ok > 0 ? `Queued ${ok} applications via API.` : "No applications were queued.", ok > 0 ? "success" : "warn");
+      await refresh();
+      return;
+    }
     const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     const apps = bulkCandidates.map((o, i) => ({
       id: `bulk-${o.id}-${Date.now()}-${i}`,
@@ -352,7 +323,7 @@ export default function Opportunities({ openOpp, selectedId }: { openOpp: (o: Op
                   <span className="mg-count">{items.length}</span>
                   <span className="ln" />
                 </div>
-                {items.map((o) => <OppRow key={o.id} o={o} selectedId={selectedId} fading={fading} skipped={skipped} applied={APPLIED_MAP} sessionApplied={sessionApplied} openOpp={openOpp} handleSkip={handleSkip} />)}
+                {items.map((o) => <OppRow key={o.id} o={o} selectedId={selectedId} fading={fading} skipped={skipped} applied={appliedMap} sessionApplied={sessionApplied} openOpp={openOpp} handleSkip={handleSkip} />)}
               </div>
             ));
           })()
@@ -363,7 +334,7 @@ export default function Opportunities({ openOpp, selectedId }: { openOpp: (o: Op
             selectedId={selectedId}
             fading={fading}
             skipped={skipped}
-            applied={APPLIED_MAP}
+            applied={appliedMap}
             sessionApplied={sessionApplied}
             openOpp={openOpp}
             handleSkip={handleSkip}
@@ -373,7 +344,7 @@ export default function Opportunities({ openOpp, selectedId }: { openOpp: (o: Op
     </div>
 
     {bulkOpen && (
-      <BulkApplySheet
+      <BulkApplyPanel
         opps={bulkCandidates}
         onConfirm={handleBulkConfirm}
         onCancel={() => setBulkOpen(false)}

@@ -1,7 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { OPPS, ACTIVITY_RANGES } from "@/components/dashboard/data";
 import { IPSChip, Urgent, EmptyState } from "@/components/dashboard/shared";
+import { getLastSyncAgo } from "@/components/dashboard/session";
+import { useDashboard } from "@/contexts/DashboardContext";
 import { Icon } from "@/components/dashboard/icons";
 import { requestOpenPrepBrief, requestOpenApplication, requestHighlightOutreachDraft } from "@/components/dashboard/session";
 import type { PageId } from "@/components/dashboard/shared";
@@ -63,10 +65,18 @@ export default function CommandCenter({ goTo, openOpp }: {
   goTo: (p: PageId) => void;
   openOpp: (o: typeof OPPS[0]) => void;
 }) {
+  const { opportunities } = useDashboard();
   const [range, setRange] = useState<RangeKey>("24h");
   const [dropOpen, setDropOpen] = useState(false);
+  const [updatedAgo, setUpdatedAgo] = useState("just now");
 
-  const feed = [...OPPS].filter((o) => !o.skipped).sort((a, b) => b.ips - a.ips).slice(0, 15);
+  useEffect(() => {
+    setUpdatedAgo(getLastSyncAgo());
+    const t = setInterval(() => setUpdatedAgo(getLastSyncAgo()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const feed = [...opportunities].filter((o) => !o.skipped).sort((a, b) => b.ips - a.ips).slice(0, 15);
   const actions = ACTION_ITEMS.slice(0, 7);
   const activity = ACTIVITY_RANGES[range];
   const segs = [
@@ -96,7 +106,7 @@ export default function CommandCenter({ goTo, openOpp }: {
           <span className="seg" key={i}><span className="n">{s.n}</span> {s.k}</span>
         ))}
         <span className="ago" style={{ position: "relative" }}>
-          Updated 4 min ago
+          Updated {updatedAgo}
           <button
             className="cc-range"
             type="button"

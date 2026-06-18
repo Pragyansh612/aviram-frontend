@@ -1,23 +1,32 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   beginFirstDashboardSession,
   getStoredProfile,
+  getStoredRules,
   isAuthed,
   isOnboardingComplete,
   saveStoredProfile,
+  saveStoredRules,
   type StoredProfile,
 } from "@/components/dashboard/session";
+import {
+  apiUpdateProfile,
+  apiUpsertPreferences,
+  apiUpdateAgentSettings,
+  apiUploadResume,
+} from "@/lib/api";
 
-const STEPS = ["profile", "resume", "preferences", "archetype", "calibration"] as const;
+const STEPS = ["profile", "resume", "preferences", "rules", "archetype", "calibration"] as const;
 type Step = (typeof STEPS)[number];
 
 const STEP_LABEL: Record<Step, string> = {
   profile: "Profile",
   resume: "Resume",
   preferences: "Preferences",
+  rules: "Auto-apply",
   archetype: "Archetype",
   calibration: "Calibration",
 };
@@ -37,11 +46,27 @@ export default function OnboardingFlow() {
   const [step, setStep] = useState<Step>("profile");
   const [profile, setProfile] = useState<StoredProfile>(emptyProfile);
   const [resumeName, setResumeName] = useState<string | null>(null);
+  const resumeInputRef = useRef<HTMLInputElement>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [rules, setRules] = useState({
+    ipsThreshold: "70",
+    dailyLimit: "20",
+    blockedCompanies: "",
+    qualityMinimum: "High",
+  });
 
   useEffect(() => {
     const stored = getStoredProfile();
     if (stored) setProfile({ ...emptyProfile, ...stored });
+    const storedRules = getStoredRules();
+    if (storedRules) {
+      setRules({
+        ipsThreshold: storedRules["IPS threshold"] ?? "70",
+        dailyLimit: storedRules["Daily application limit"] ?? "20",
+        blockedCompanies: storedRules["Blocked companies"] ?? "",
+        qualityMinimum: storedRules["Quality score minimum"] ?? "High",
+      });
+    }
     setHydrated(true);
   }, []);
 
@@ -54,9 +79,40 @@ export default function OnboardingFlow() {
   const stepIdx = STEPS.indexOf(step);
   const progress = ((stepIdx + 1) / STEPS.length) * 100;
 
-  const next = () => {
+  const next = async () => {
     if (step === "calibration") {
       saveStoredProfile(profile);
+      saveStoredRules({
+        "IPS threshold": rules.ipsThreshold,
+        "Daily application limit": rules.dailyLimit,
+        "Blocked companies": rules.blockedCompanies || "None",
+        "Timing window": "Thu 8–11 AM",
+        "Quality score minimum": rules.qualityMinimum,
+        "Auto-send referrals": "false",
+      });
+      try {
+        await apiUpdateProfile({
+          full_name: profile.name,
+          phone: profile.phone || null,
+          linkedin_url: profile.linkedin.startsWith("http")
+            ? profile.linkedin
+            : profile.linkedin ? `https://linkedin.com/in/${profile.linkedin.replace(/^in\//, "")}` : null,
+        });
+        await apiUpsertPreferences({
+          desired_roles: profile.roles.split(/[,·]/).map((s) => s.trim()).filter(Boolean),
+          preferred_locations: profile.locations.split(/[,·]/).map((s) => s.trim()).filter(Boolean),
+          min_salary: parseInt(profile.salaryFloor.replace(/\D/g, ""), 10) || undefined,
+          remote_preference: profile.locations.toLowerCase().includes("remote") ? "remote" : "any",
+        });
+        await apiUpdateAgentSettings({
+          ips_threshold: parseFloat(rules.ipsThreshold) / 100,
+          daily_cap: parseInt(rules.dailyLimit, 10),
+          quality_min: rules.qualityMinimum.toLowerCase() === "high" ? 0.8 : 0.6,
+          is_enabled: true,
+        });
+      } catch {
+        // local onboarding still completes if API unavailable
+      }
       beginFirstDashboardSession();
       router.push("/dashboard");
       return;
@@ -65,7 +121,16 @@ export default function OnboardingFlow() {
   };
 
   const handleResumePick = () => {
-    setResumeName("pragyansh_resume.pdf");
+    resumeInputRef.current?.click();
+  };
+
+  const handleResumeFile = async (file: File) => {
+    setResumeName(file.name);
+    try {
+      await apiUploadResume(file);
+    } catch {
+      // local filename still shown; upload retries after onboarding
+    }
   };
 
   return (
@@ -114,7 +179,7 @@ export default function OnboardingFlow() {
               {resumeName ? (
                 <>
                   <span className="resume-drop-name">{resumeName}</span>
-                  <span className="resume-drop-meta">Parsed · 5 yrs experience · backend</span>
+                  <span className="resume-drop-meta">Uploaded · ready for parsing</span>
                 </>
               ) : (
                 <>
@@ -123,6 +188,17 @@ export default function OnboardingFlow() {
                 </>
               )}
             </button>
+            <input
+              ref={resumeInputRef}
+              type="file"
+              accept=".pdf,.doc,.docx"
+              hidden
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void handleResumeFile(f);
+                e.target.value = "";
+              }}
+            />
           </div>
         )}
 
@@ -141,6 +217,31 @@ export default function OnboardingFlow() {
               <label className="auth-field">
                 <span className="auth-label">Salary floor</span>
                 <input className="auth-input" required value={profile.salaryFloor} onChange={(e) => setProfile({ ...profile, salaryFloor: e.target.value })} />
+              </label>
+            </div>
+          </div>
+        )}
+
+        {step === "rules" && (
+          <div className="onboard-body">
+            <h1 className="onboard-title serif">Auto-apply rules</h1>
+            <p className="onboard-lede">Aviram only applies inside limits you set. Nothing leaves without matching these.</p>
+            <div className="auth-form">
+              <label className="auth-field">
+                <span className="auth-label">Minimum IPS to apply</span>
+                <input className="auth-input" type="number" min={50} max={99} required value={rules.ipsThreshold} onChange={(e) => setRules({ ...rules, ipsThreshold: e.target.value })} />
+              </label>
+              <label className="auth-field">
+                <span className="auth-label">Daily application limit</span>
+                <input className="auth-input" type="number" min={1} max={50} required value={rules.dailyLimit} onChange={(e) => setRules({ ...rules, dailyLimit: e.target.value })} />
+              </label>
+              <label className="auth-field">
+                <span className="auth-label">Blocked companies</span>
+                <input className="auth-input" placeholder="Comma-separated — optional" value={rules.blockedCompanies} onChange={(e) => setRules({ ...rules, blockedCompanies: e.target.value })} />
+              </label>
+              <label className="auth-field">
+                <span className="auth-label">Quality score minimum</span>
+                <input className="auth-input" required value={rules.qualityMinimum} onChange={(e) => setRules({ ...rules, qualityMinimum: e.target.value })} />
               </label>
             </div>
           </div>

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { TIMELINE, APPS } from "@/components/dashboard/data";
 import { IPSChip, PageHead, EmptyState, useStagger } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
+import { useDashboard } from "@/contexts/DashboardContext";
 import {
   getSkippedOpps,
   getSessionTimelineEvents,
@@ -40,9 +41,9 @@ type TlEvent = {
   draftId?: string;
 };
 
-function findAppId(company: string, role?: string): string | undefined {
-  const app = APPS.find((a) => a.company === company && (!role || a.role === role))
-    ?? APPS.find((a) => a.company === company);
+function findAppId(company: string, role: string | undefined, apps: typeof APPS): string | undefined {
+  const app = apps.find((a) => a.company === company && (!role || a.role === role))
+    ?? apps.find((a) => a.company === company);
   return app?.id;
 }
 
@@ -53,6 +54,9 @@ function referralDraftId(company: string): string | undefined {
 }
 
 export default function Timeline({ goTo }: { goTo: (p: PageId) => void }) {
+  const { timeline: apiTimeline, applications, apiLive } = useDashboard();
+  const sourceTimeline = apiLive ? apiTimeline : (apiTimeline.length ? apiTimeline : TIMELINE);
+  const sourceApps = apiLive ? applications : (applications.length ? applications : APPS);
   const [filter, setFilter] = useState("all");
   const [runtimeSkipped, setRuntimeSkipped] = useState<SkippedOpp[]>([]);
   const [sessionEvents, setSessionEvents] = useState<SessionTimelineEvent[]>([]);
@@ -89,7 +93,7 @@ export default function Timeline({ goTo }: { goTo: (p: PageId) => void }) {
     draftId: e.draftId,
   }));
 
-  const todayStatic: TlEvent[] = (TIMELINE.find((g) => g.day === "Today")?.events ?? []).map((e) => ({
+  const todayStatic: TlEvent[] = (sourceTimeline.find((g) => g.day === "Today")?.events ?? []).map((e) => ({
     ...e,
     action: e.action,
     ips: e.ips,
@@ -100,7 +104,7 @@ export default function Timeline({ goTo }: { goTo: (p: PageId) => void }) {
     ...todayStatic,
   ].filter(match);
 
-  const otherGroups = TIMELINE.filter((g) => g.day !== "Today").map((group) => ({
+  const otherGroups = sourceTimeline.filter((g) => g.day !== "Today").map((group) => ({
     day: group.day,
     events: group.events.map((e) => ({ ...e, action: e.action, ips: e.ips } as TlEvent)).filter(match),
   })).filter((g) => g.events.length > 0);
@@ -109,7 +113,7 @@ export default function Timeline({ goTo }: { goTo: (p: PageId) => void }) {
     ? [{ day: "Today", events: todayMerged }, ...otherGroups]
     : otherGroups;
 
-  const hasAnyEvents = TIMELINE.some((g) => g.events.length > 0) || runtimeSkipped.length > 0 || sessionEvents.length > 0;
+  const hasAnyEvents = sourceTimeline.some((g) => g.events.length > 0) || runtimeSkipped.length > 0 || sessionEvents.length > 0;
   const totalEvents = groups.reduce((n, g) => n + g.events.length, 0);
   const shown = useStagger(totalEvents, totalEvents > 0, 50, 60);
   let eventIdx = 0;
@@ -131,7 +135,7 @@ export default function Timeline({ goTo }: { goTo: (p: PageId) => void }) {
       return;
     }
     if (e.type === "applied" || e.type === "response") {
-      const appId = e.appId ?? findAppId(e.company, e.role);
+      const appId = e.appId ?? findAppId(e.company, e.role, sourceApps);
       if (appId) requestOpenApplication(appId);
       goTo("applications");
     }

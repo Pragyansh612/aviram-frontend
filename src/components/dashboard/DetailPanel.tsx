@@ -3,11 +3,10 @@ import Link from "next/link";
 import { IPSChip, ScoreTree } from "./shared";
 import { Icon } from "./icons";
 import { showToast } from "./Toast";
+import { useDashboard } from "@/contexts/DashboardContext";
 import type { OPPS } from "./data";
 
 export type Opp = (typeof OPPS)[number];
-
-const STUB_MSG = "This will be available when connected to backend.";
 
 function refInitials(refPath: string) {
   const m = refPath.match(/via (\w)\w* (\w)/);
@@ -15,6 +14,13 @@ function refInitials(refPath: string) {
 }
 
 export default function DetailPanel({ opp, onClose }: { opp: Opp; onClose: () => void }) {
+  const { applyToJob, apiLive } = useDashboard();
+
+  const handleQueue = async () => {
+    const res = await applyToJob(opp.id);
+    showToast(res.message, res.ok ? "success" : "warn");
+    if (res.ok) onClose();
+  };
   return (
     <>
       <div className="detail-scrim" onClick={onClose} />
@@ -66,27 +72,25 @@ export default function DetailPanel({ opp, onClose }: { opp: Opp; onClose: () =>
           <div className="dp-kv"><span className="k">ATS</span><span className="v">{opp.platform}</span></div>
           {!opp.skipped && (
             <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
-              {/* Primary CTA: Queue application — stub with toast, styled as ghost until backend */}
               <button
-                className="btn btn-ghost"
-                onClick={() => showToast(STUB_MSG)}
-                title="Requires backend connection"
+                className={apiLive ? "btn btn-primary" : "btn btn-ghost"}
+                onClick={handleQueue}
               >
                 Queue application <span className="arr" style={{ width: 14, height: 14, display: "inline-block" }}><Icon name="arrow" /></span>
               </button>
-              {/* Secondary: Tailor resume — clearly secondary weight */}
               <button
                 className="btn btn-quiet btn-sm"
-                onClick={() => showToast(STUB_MSG)}
-                title="Requires backend connection"
+                onClick={() => showToast(apiLive ? "Resume tailoring runs automatically on apply." : "Connect backend for resume tailoring.", "info")}
               >
                 Tailor resume
               </button>
             </div>
           )}
-          <div className="dp-stub-note">
-            Backend not yet connected — actions will be live soon.
-          </div>
+          {!apiLive && (
+            <div className="dp-stub-note">
+              Demo mode — start the API at localhost:8000 for live applications.
+            </div>
+          )}
         </div>
       </aside>
     </>

@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 import { Icon } from "./icons";
 import { CountUp, useStagger } from "./shared";
 import { USER, BRIEF } from "./data";
-import { getDisplayName, getActiveForDuration, requestOpenPrepBrief, requestHighlightOutreachDraft } from "./session";
+import { useDashboard } from "@/contexts/DashboardContext";
+import { getDisplayName, getActiveForDuration, requestOpenPrepBrief, requestHighlightOutreachDraft, getBriefVariant, saveBriefVariant } from "./session";
 
 const arrIcon: React.CSSProperties = { width: 14, height: 14, display: "inline-block" };
 
@@ -71,14 +72,14 @@ function BriefLetterFirst({ onEnter, firstName }: { onEnter: () => void; firstNa
   );
 }
 
-function BriefLetter({ onEnter, goTo, firstName }: { onEnter: () => void; goTo: (p: string) => void; firstName: string }) {
+function BriefLetter({ onEnter, goTo, firstName, brief }: { onEnter: () => void; goTo: (p: string) => void; firstName: string; brief: typeof BRIEF }) {
   const activeDuration = getActiveForDuration() ?? USER.activeFor;
   const stats = [
-    { n: BRIEF.discovered, k: "opportunities discovered" },
-    { n: BRIEF.shortlisted, k: "shortlisted by score" },
-    { n: BRIEF.submitted,  k: "applications submitted" },
-    { n: BRIEF.referral,   k: "referral surfaced" },
-    { n: BRIEF.interview,  k: "interview scheduled" },
+    { n: brief.discovered, k: "opportunities discovered" },
+    { n: brief.shortlisted, k: "shortlisted by score" },
+    { n: brief.submitted,  k: "applications submitted" },
+    { n: brief.referral,   k: "referral surfaced" },
+    { n: brief.interview,  k: "interview scheduled" },
   ];
   const shown = useStagger(13, true, 50, 140);
   return (
@@ -167,15 +168,15 @@ function BriefTerminalFirst({ onEnter, firstName }: { onEnter: () => void; first
   );
 }
 
-function BriefTerminal({ onEnter, goTo, firstName }: { onEnter: () => void; goTo: (p: string) => void; firstName: string }) {
+function BriefTerminal({ onEnter, goTo, firstName, brief }: { onEnter: () => void; goTo: (p: string) => void; firstName: string; brief: typeof BRIEF }) {
   const activeDuration = getActiveForDuration() ?? USER.activeFor;
   const rows = [
-    { tk: "22:48", n: BRIEF.discovered, tx: "opportunities discovered across 16 sources" },
-    { tk: "23:31", n: BRIEF.shortlisted, tx: "shortlisted above your IPS threshold" },
+    { tk: "22:48", n: brief.discovered, tx: "opportunities discovered across 16 sources" },
+    { tk: "23:31", n: brief.shortlisted, tx: "shortlisted above your IPS threshold" },
     { tk: "01:09", n: 1, tx: "recruiter response received · Vercel" },
-    { tk: "01:48", n: BRIEF.submitted, tx: "applications submitted · resume tailored each" },
-    { tk: "02:02", n: BRIEF.referral, tx: "referral path surfaced · draft written" },
-    { tk: "02:14", n: BRIEF.interview, tx: "interview scheduled · Razorpay SDE-2" },
+    { tk: "01:48", n: brief.submitted, tx: "applications submitted · resume tailored each" },
+    { tk: "02:02", n: brief.referral, tx: "referral path surfaced · draft written" },
+    { tk: "02:14", n: brief.interview, tx: "interview scheduled · Razorpay SDE-2" },
   ];
   const shown = useStagger(rows.length, true, 160, 400);
   return (
@@ -189,7 +190,7 @@ function BriefTerminal({ onEnter, goTo, firstName }: { onEnter: () => void; goTo
         <div className="bt-body">
           <div className="bt-prompt"><span className="usr">aviram@{USER.archetype}</span>:<span className="cmd">~$</span> summary --since last-login</div>
           <div className="bt-greet">Good morning, {firstName}.</div>
-          <div className="bt-sub">{activeDuration} active · 16 sources · {BRIEF.discovered} found · {BRIEF.submitted} applied · {BRIEF.interview} interview</div>
+          <div className="bt-sub">{activeDuration} active · 16 sources · {brief.discovered} found · {brief.submitted} applied · {brief.interview} interview</div>
           <div className="bt-feed">
             {rows.map((r, i) => (
               <div className={"bt-row" + (i < shown ? " in" : "")} key={i}>
@@ -239,20 +240,19 @@ export default function Entry({
   goTo: (p: string) => void;
   firstTime?: boolean;
 }) {
+  const { briefStats, userMeta, apiLive } = useDashboard();
+  const brief = apiLive ? briefStats : BRIEF;
   const [stage, setStage] = useState<"active" | "brief">("active");
   const [variant, setVariant] = useState<"letter" | "terminal">("letter");
-  const firstName = getDisplayName();
+  const firstName = userMeta.first || getDisplayName();
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("aviram-brief-variant") as "letter" | "terminal" | null;
-      if (saved === "letter" || saved === "terminal") setVariant(saved);
-    } catch {}
+    setVariant(getBriefVariant());
   }, []);
 
   const pick = (v: "letter" | "terminal") => {
     setVariant(v);
-    try { localStorage.setItem("aviram-brief-variant", v); } catch {}
+    saveBriefVariant(v);
   };
 
   if (stage === "active") {
@@ -281,9 +281,9 @@ export default function Entry({
             ? <BriefLetterFirst onEnter={onEnter} firstName={firstName} />
             : <BriefTerminalFirst onEnter={onEnter} firstName={firstName} />
         ) : variant === "letter" ? (
-          <BriefLetter onEnter={onEnter} goTo={goTo} firstName={firstName} />
+          <BriefLetter onEnter={onEnter} goTo={goTo} firstName={firstName} brief={brief} />
         ) : (
-          <BriefTerminal onEnter={onEnter} goTo={goTo} firstName={firstName} />
+          <BriefTerminal onEnter={onEnter} goTo={goTo} firstName={firstName} brief={brief} />
         )}
       </div>
     </div>

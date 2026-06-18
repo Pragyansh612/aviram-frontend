@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { USER, MISSIONS } from "@/components/dashboard/data";
 import {
   getStoredProfile,
@@ -9,10 +9,26 @@ import {
   getStoredRules,
   saveStoredRules,
   getCalibrationCount,
+  getBriefVariant,
+  saveBriefVariant,
 } from "@/components/dashboard/session";
+import {
+  apiUpdateProfile,
+  apiUpsertPreferences,
+  apiUpdateAgentSettings,
+  apiListCredentials,
+  apiUpsertCredential,
+  apiDeleteCredential,
+  apiGetProfile,
+  apiGetPreferences,
+  apiGetAgentSettings,
+} from "@/lib/api";
 import { PageHead } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 import { showToast } from "@/components/dashboard/Toast";
+import { useDashboard } from "@/contexts/DashboardContext";
+
+const STUB_MSG = "OAuth connection will be available when connected to backend.";
 
 function SettingsSection({ icon, title, sub, children }: { icon: string; title: string; sub: string; children: React.ReactNode }) {
   return (
@@ -43,10 +59,20 @@ function EditableRow({ label, value, onChange }: { label: string; value: string;
   );
 }
 
-export default function Settings({ running, toggleRunning }: { running: boolean; toggleRunning: () => void }) {
-  const [autoRef, setAutoRef] = useState(false);
+const DEFAULT_CONNS: Record<string, boolean> = {
+  Greenhouse: true,
+  Ashby: true,
+  Lever: true,
+  Workday: false,
+  LinkedIn: true,
+  Wellfound: false,
+};
 
-  // Editable profile state — prefer real data from onboarding/signup, fall back to mock USER
+export default function Settings({ running, toggleRunning }: { running: boolean; toggleRunning: () => void }) {
+  const { apiLive } = useDashboard();
+  const [briefVariant, setBriefVariant] = useState<"letter" | "terminal">("letter");
+  const [conns, setConns] = useState(DEFAULT_CONNS);
+
   const [profile, setProfile] = useState(() => {
     const stored = getStoredProfile();
     return {
@@ -59,15 +85,14 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
     };
   });
 
-  // Editable preferences state
   const [prefs, setPrefs] = useState(() => {
     const stored = getStoredPrefs();
-    const profile = getStoredProfile();
+    const p = getStoredProfile();
     return {
-      Roles: stored?.Roles ?? profile?.roles ?? "Backend, Distributed Systems, Platform",
-      Locations: stored?.Locations ?? profile?.locations ?? "Remote · Bengaluru",
+      Roles: stored?.Roles ?? p?.roles ?? "Backend, Distributed Systems, Platform",
+      Locations: stored?.Locations ?? p?.locations ?? "Remote · Bengaluru",
       "Remote preference": stored?.["Remote preference"] ?? "Remote-first",
-      "Salary floor": stored?.["Salary floor"] ?? profile?.salaryFloor ?? "₹38 LPA",
+      "Salary floor": stored?.["Salary floor"] ?? p?.salaryFloor ?? "₹38 LPA",
       Industries: stored?.Industries ?? "Fintech, Dev tools, Infra",
       "Opportunity type": stored?.["Opportunity type"] ?? "Full-time",
     };
@@ -81,18 +106,70 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
       "Blocked companies": stored?.["Blocked companies"] ?? "3 added",
       "Timing window": stored?.["Timing window"] ?? "Thu 8–11 AM",
       "Quality score minimum": stored?.["Quality score minimum"] ?? "High",
+      "Auto-send referrals": stored?.["Auto-send referrals"] === "true",
     };
   });
+
+  useEffect(() => {
+    setBriefVariant(getBriefVariant());
+    apiListCredentials()
+      .then((creds) => {
+        if (!creds?.length) return;
+        setConns((prev) => {
+          const next = { ...prev };
+          for (const c of creds) {
+            const key = Object.keys(next).find((k) => k.toLowerCase() === c.platform);
+            if (key) next[key] = true;
+          }
+          return next;
+        });
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!apiLive) return;
+    Promise.all([
+      apiGetProfile().catch(() => null),
+      apiGetPreferences().catch(() => null),
+      apiGetAgentSettings().catch(() => null),
+    ]).then(([prof, prefsApi, agent]) => {
+      if (prof) {
+        setProfile({
+          Name: prof.full_name ?? USER.name,
+          Email: prof.email,
+          Phone: prof.phone ?? USER.phone,
+          LinkedIn: prof.linkedin_url?.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//, "") ?? USER.linkedin,
+          GitHub: prof.github_url?.replace(/^https?:\/\//, "") ?? USER.github,
+          Portfolio: prof.website_url?.replace(/^https?:\/\//, "") ?? USER.portfolio,
+        });
+      }
+      if (prefsApi) {
+        setPrefs((p) => ({
+          ...p,
+          Roles: prefsApi.desired_roles?.join(", ") ?? p.Roles,
+          Locations: prefsApi.preferred_locations?.join(" · ") ?? p.Locations,
+          "Remote preference": prefsApi.remote_preference ?? p["Remote preference"],
+          Industries: prefsApi.industries?.join(", ") ?? p.Industries,
+          "Opportunity type": prefsApi.opportunity_type ?? p["Opportunity type"],
+        }));
+      }
+      if (agent) {
+        const threshold = agent.ips_threshold as number | undefined;
+        setRules((r) => ({
+          ...r,
+          "IPS threshold": threshold != null ? String(threshold > 1 ? threshold : Math.round(threshold * 100)) : r["IPS threshold"],
+          "Daily application limit": String(agent.daily_cap ?? r["Daily application limit"]),
+          "Quality score minimum": (agent.quality_min as number) >= 0.8 ? "High" : "Medium",
+        }));
+      }
+    });
+  }, [apiLive]);
 
   const calibration = getCalibrationCount() ?? USER.calibration;
   const calibrationMax = USER.calibrationMax;
 
-  const conns: [string, boolean][] = [
-    ["Greenhouse", true], ["Ashby", true], ["Lever", true],
-    ["Workday", false], ["LinkedIn", true], ["Wellfound", false],
-  ];
-
-  const handleSave = (section: string) => {
+  const handleSave = async (section: string) => {
     if (section === "Profile") {
       const stored = getStoredProfile();
       saveStoredProfile({
@@ -104,10 +181,70 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
         locations: stored?.locations ?? prefs.Locations,
         salaryFloor: stored?.salaryFloor ?? prefs["Salary floor"],
       });
+      try {
+        await apiUpdateProfile({
+          full_name: profile.Name,
+          phone: profile.Phone,
+          linkedin_url: profile.LinkedIn.startsWith("http") ? profile.LinkedIn : `https://linkedin.com/in/${profile.LinkedIn}`,
+          github_url: profile.GitHub.startsWith("http") ? profile.GitHub : profile.GitHub ? `https://${profile.GitHub}` : null,
+          website_url: profile.Portfolio.startsWith("http") ? profile.Portfolio : profile.Portfolio ? `https://${profile.Portfolio}` : null,
+        });
+      } catch { /* local save still works */ }
     }
-    if (section === "Preferences") saveStoredPrefs(prefs);
-    if (section === "Auto-apply rules") saveStoredRules(rules);
+    if (section === "Preferences") {
+      saveStoredPrefs(prefs);
+      try {
+        await apiUpsertPreferences({
+          desired_roles: prefs.Roles.split(",").map((s) => s.trim()).filter(Boolean),
+          preferred_locations: prefs.Locations.split(/[,·]/).map((s) => s.trim()).filter(Boolean),
+          industries: prefs.Industries.split(",").map((s) => s.trim()).filter(Boolean),
+          remote_preference: prefs["Remote preference"].toLowerCase().includes("remote") ? "remote" : "any",
+        });
+      } catch { /* local */ }
+    }
+    if (section === "Auto-apply rules") {
+      saveStoredRules({
+        "IPS threshold": rules["IPS threshold"],
+        "Daily application limit": rules["Daily application limit"],
+        "Blocked companies": rules["Blocked companies"],
+        "Timing window": rules["Timing window"],
+        "Quality score minimum": rules["Quality score minimum"],
+        "Auto-send referrals": rules["Auto-send referrals"] ? "true" : "false",
+      });
+      try {
+        await apiUpdateAgentSettings({
+          ips_threshold: parseFloat(rules["IPS threshold"]) / 100,
+          daily_cap: parseInt(rules["Daily application limit"], 10),
+          quality_min: rules["Quality score minimum"].toLowerCase() === "high" ? 0.8 : 0.6,
+        });
+      } catch { /* local */ }
+    }
     showToast(`${section} saved successfully`, "success");
+  };
+
+  const handleBriefVariant = (v: "letter" | "terminal") => {
+    setBriefVariant(v);
+    saveBriefVariant(v);
+    showToast(`Morning Brief set to ${v === "letter" ? "Letter" : "Terminal"} variant`, "success");
+  };
+
+  const handleConn = async (name: string) => {
+    if (conns[name]) {
+      setConns((c) => ({ ...c, [name]: false }));
+      try { await apiDeleteCredential(name.toLowerCase()); } catch { /* demo */ }
+      showToast(`${name} disconnected`, "info");
+      return;
+    }
+    const email = prompt(`Email for ${name}:`);
+    const password = prompt(`Password for ${name} (stored encrypted):`);
+    if (!email || !password) return;
+    try {
+      await apiUpsertCredential(name.toLowerCase(), email, password);
+      setConns((c) => ({ ...c, [name]: true }));
+      showToast(`${name} connected`, "success");
+    } catch {
+      showToast(STUB_MSG, "warn");
+    }
   };
 
   return (
@@ -131,9 +268,7 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
           </div>
         </SettingsSection>
 
-        {/* Job Preferences: roles, locations, salary, industry — no Missions here.
-            Missions are their own section below (P4 decision: distinct concept, distinct space). */}
-        <SettingsSection icon="target" title="Job Preferences" sub="roles · locations · salary">
+        <SettingsSection icon="target" title="Job Preferences" sub="roles · locations · missions">
           {(Object.keys(prefs) as (keyof typeof prefs)[]).map((k) => (
             <EditableRow
               key={k}
@@ -142,12 +277,7 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
               onChange={(v) => setPrefs((p) => ({ ...p, [k]: v }))}
             />
           ))}
-          <div className="ss-save-row">
-            <button className="btn btn-primary btn-sm" onClick={() => handleSave("Preferences")}>Save changes</button>
-          </div>
-        </SettingsSection>
-
-        <SettingsSection icon="command" title="Missions" sub={`${MISSIONS.length} active`}>
+          <div className="dp-sec" style={{ marginTop: 20, marginBottom: 10 }}>Active missions</div>
           {MISSIONS.map((m) => (
             <div className="srow mission-srow" key={m.id}>
               <div className="sl">
@@ -159,10 +289,13 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
               </div>
             </div>
           ))}
+          <div className="ss-save-row">
+            <button className="btn btn-primary btn-sm" onClick={() => handleSave("Preferences")}>Save changes</button>
+          </div>
         </SettingsSection>
 
         <SettingsSection icon="sliders" title="Auto-Apply Rules" sub="applied every run">
-          {(Object.keys(rules) as (keyof typeof rules)[]).map((k) => (
+          {(["IPS threshold", "Daily application limit", "Blocked companies", "Timing window", "Quality score minimum"] as const).map((k) => (
             <EditableRow
               key={k}
               label={k}
@@ -172,7 +305,12 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
           ))}
           <div className="srow">
             <div className="sl"><div className="k">Auto-send referrals</div><div className="d">Draft only — you press send. Always.</div></div>
-            <div className={"toggle " + (autoRef ? "on" : "off")} onClick={() => setAutoRef(!autoRef)}><i /></div>
+            <div
+              className={"toggle " + (rules["Auto-send referrals"] ? "on" : "off")}
+              onClick={() => setRules((r) => ({ ...r, "Auto-send referrals": !r["Auto-send referrals"] }))}
+              role="switch"
+              aria-checked={rules["Auto-send referrals"]}
+            ><i /></div>
           </div>
           <div className="ss-save-row">
             <button className="btn btn-primary btn-sm" onClick={() => handleSave("Auto-apply rules")}>Save changes</button>
@@ -181,10 +319,20 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
 
         <SettingsSection icon="plug" title="Platform Credentials" sub="connected ATS">
           <div className="conn-grid">
-            {conns.map(([n, on], i) => (
-              <div className={"conn-card " + (on ? "on" : "off")} key={i}>
+            {Object.entries(conns).map(([n, on]) => (
+              <div className={"conn-card " + (on ? "on" : "off")} key={n}>
                 <span className="cdot" />
-                <div><div className="cn">{n}</div><div className={"cs " + (on ? "on" : "")}>{on ? "Connected" : "Not connected"}</div></div>
+                <div className="conn-info">
+                  <div className="cn">{n}</div>
+                  <div className={"cs " + (on ? "on" : "")}>{on ? "Connected" : "Not connected"}</div>
+                </div>
+                <button
+                  type="button"
+                  className={"btn btn-sm " + (on ? "btn-ghost" : "btn-quiet")}
+                  onClick={() => handleConn(n)}
+                >
+                  {on ? "Disconnect" : "Connect"}
+                </button>
               </div>
             ))}
           </div>
@@ -200,8 +348,15 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
             </div>
           </div>
           <div className="srow">
+            <div className="sl"><div className="k">Morning Brief variant</div><div className="d">Letter feels editorial; Terminal feels like a system log.</div></div>
+            <div className="variant-switch settings-variant">
+              <button type="button" className={briefVariant === "letter" ? "on" : ""} onClick={() => handleBriefVariant("letter")}>Letter</button>
+              <button type="button" className={briefVariant === "terminal" ? "on" : ""} onClick={() => handleBriefVariant("terminal")}>Terminal</button>
+            </div>
+          </div>
+          <div className="srow">
             <div className="sl"><div className="k">Aviram status</div><div className="d">{running ? "Running — discovering, scoring, applying within your rules." : "Paused — no new applications will go out."}</div></div>
-            <div className={"toggle " + (running ? "on" : "off")} onClick={toggleRunning}><i /></div>
+            <div className={"toggle " + (running ? "on" : "off")} onClick={toggleRunning} role="switch" aria-checked={running}><i /></div>
           </div>
         </SettingsSection>
       </div>

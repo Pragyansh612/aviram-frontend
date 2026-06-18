@@ -1,15 +1,79 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { RESUME } from "@/components/dashboard/data";
 import { PageHead, EmptyState } from "@/components/dashboard/shared";
 import { showToast } from "@/components/dashboard/Toast";
 import { Icon } from "@/components/dashboard/icons";
+import { useDashboard } from "@/contexts/DashboardContext";
+import { apiListResumes, apiUploadResume } from "@/lib/api";
 
 export default function ResumeLab() {
-  const variants = RESUME.variants;
+  const { apiLive } = useDashboard();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [variants, setVariants] = useState(RESUME.variants);
   const defaultVariant = variants.find(v => v.isDefault) ?? variants[0];
   const [active, setActive] = useState(defaultVariant?.id ?? "");
   const [compare, setCompare] = useState(false);
+
+  useEffect(() => {
+    if (!apiLive) return;
+    apiListResumes()
+      .then((data) => {
+        const rows = data.resumes ?? [];
+        if (!rows.length) return;
+        setVariants((prev) => {
+          const mapped = rows.map((r, i) => ({
+            id: String(r.id ?? `api-${i}`),
+            name: String(r.filename ?? r.name ?? `Resume ${i + 1}`),
+            isDefault: i === 0,
+            apps: 0,
+            responses: 0,
+            interviews: 0,
+            responseRate: 14,
+            note: "Uploaded via API",
+            experienceYears: 5,
+            wordCount: 420,
+            skills: ["Python", "Go", "PostgreSQL"],
+            highlights: ["Uploaded via API"],
+          }));
+          return mapped.length ? mapped : prev;
+        });
+      })
+      .catch(() => {});
+  }, [apiLive]);
+
+  const handleUpload = async (file: File) => {
+    if (!apiLive) {
+      showToast("Start the backend at localhost:8000 to upload resumes.", "warn");
+      return;
+    }
+    try {
+      const res = await apiUploadResume(file);
+      showToast(`Uploaded ${res.filename}`, "success");
+      const data = await apiListResumes();
+      const rows = data.resumes ?? [];
+      if (rows.length) {
+        const mapped = rows.map((r, i) => ({
+          id: String(r.id ?? `api-${i}`),
+          name: String(r.filename ?? r.name ?? `Resume ${i + 1}`),
+          isDefault: i === 0,
+          apps: 0,
+          responses: 0,
+          interviews: 0,
+          responseRate: 14,
+          note: "Uploaded via API",
+          experienceYears: 5,
+          wordCount: 420,
+          skills: ["Python", "Go", "PostgreSQL"],
+          highlights: ["Uploaded via API"],
+        }));
+        setVariants(mapped);
+        setActive(mapped[0]!.id);
+      }
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Upload failed", "warn");
+    }
+  };
 
   if (variants.length === 0) {
     return (
@@ -37,7 +101,18 @@ export default function ResumeLab() {
             <button type="button" className={"btn btn-sm " + (compare ? "btn-primary" : "btn-ghost")} onClick={() => setCompare(!compare)}>
               {compare ? "Exit compare" : "Compare versions"}
             </button>
-            <button type="button" className="btn btn-quiet btn-sm" onClick={() => showToast("Resume upload will be available when connected to backend.")}>Upload new ↑</button>
+            <button type="button" className="btn btn-quiet btn-sm" onClick={() => fileRef.current?.click()}>Upload new ↑</button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".pdf,.doc,.docx"
+              hidden
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void handleUpload(f);
+                e.target.value = "";
+              }}
+            />
           </div>
         }
       />

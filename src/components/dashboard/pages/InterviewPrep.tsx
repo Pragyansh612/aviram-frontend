@@ -3,6 +3,8 @@ import { useState, useEffect, useMemo } from "react";
 import { PREP } from "@/components/dashboard/data";
 import { PageHead, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
+import { useDashboard } from "@/contexts/DashboardContext";
+import { apiListInterviewSessions } from "@/lib/api";
 
 const arrIcon: React.CSSProperties = { width: 14, height: 14, display: "inline-block" };
 const PREP_TASKS_KEY = "aviram-prep-tasks";
@@ -20,11 +22,32 @@ function saveChecked(set: Set<string>) {
 }
 
 export default function InterviewPrep({ openBrief = false }: { openBrief?: boolean }) {
+  const { apiLive } = useDashboard();
+  const [upcoming, setUpcoming] = useState(PREP.upcoming);
   const [view, setView] = useState<"list" | "brief">(openBrief ? "brief" : "list");
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [qbFilter, setQbFilter] = useState<string>("All");
   const [taskPrep, setTaskPrep] = useState<string>("p1");
   const b = PREP.brief;
+
+  useEffect(() => {
+    if (!apiLive) return;
+    apiListInterviewSessions()
+      .then((sessions) => {
+        if (!sessions.length) return;
+        setUpcoming(sessions.map((s, i) => ({
+          id: s.id,
+          company: s.company_name,
+          role: s.job_title,
+          date: s.prep_mode ?? "Scheduled",
+          countdown: i === 0 ? "Soon" : "—",
+          progress: i === 0 ? 40 : 0,
+          soon: i === 0,
+        })));
+        setTaskPrep(sessions[0]?.id ?? "p1");
+      })
+      .catch(() => {});
+  }, [apiLive]);
 
   useEffect(() => { setChecked(loadChecked()); }, []);
   useEffect(() => {
@@ -107,12 +130,12 @@ export default function InterviewPrep({ openBrief = false }: { openBrief?: boole
         title="The application was automated. This part won't be."
         sub="Aviram assembles a prep brief from your real history for every interview it books."
       />
-      {PREP.upcoming.length === 0 ? (
+      {upcoming.length === 0 ? (
         <EmptyState>No interviews scheduled. Aviram will add prep plans when it books one.</EmptyState>
       ) : (
       <>
       <div className="prep-grid">
-        {PREP.upcoming.map((p) => (
+        {upcoming.map((p) => (
           <div
             className={"prep-card" + (p.soon ? " soon" : "") + (taskPrep === p.id ? " active-prep" : "")}
             key={p.id}
@@ -138,7 +161,7 @@ export default function InterviewPrep({ openBrief = false }: { openBrief?: boole
         ))}
       </div>
 
-      <div className="sec-label">Prep plan · {PREP.upcoming.find(p => p.id === taskPrep)?.company} <span className="ln" /></div>
+      <div className="sec-label">Prep plan · {upcoming.find(p => p.id === taskPrep)?.company} <span className="ln" /></div>
       <div className="prep-tasks card card-pad">
         {tasksByDay.map(({ day, items }) => (
           <div className="prep-day" key={day}>

@@ -4,17 +4,73 @@ import { OUTREACH } from "@/components/dashboard/data";
 import { PageHead, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 import { showToast } from "@/components/dashboard/Toast";
+import { useDashboard } from "@/contexts/DashboardContext";
+import { apiListReferralRequests, apiListOutreachCampaigns } from "@/lib/api";
+import type { ReferralRequest } from "@/lib/api";
 import type { Campaign } from "@/components/dashboard/CampaignPanel";
 
 const arrIcon: React.CSSProperties = { width: 14, height: 14, display: "inline-block" };
-const STUB_MSG = "This will be available when connected to backend.";
+const STUB_MSG = "Connect to backend to send outreach.";
+
+type Draft = (typeof OUTREACH.drafts)[number];
+type CampaignRow = (typeof OUTREACH.campaigns)[number];
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  return parts.length >= 2
+    ? (parts[0]![0]! + parts[1]![0]!).toUpperCase()
+    : (name[0] ?? "?").toUpperCase();
+}
+
+function mapReferralToDraft(r: ReferralRequest): Draft {
+  const contact = r.connection_name ?? "Contact";
+  const company = r.company ?? r.company_name ?? "—";
+  return {
+    id: r.id,
+    contact,
+    initials: initials(contact),
+    rel: r.status ? `${r.status} · referral path` : "Referral path",
+    company,
+    role: r.job_title ?? "—",
+    body: r.draft_message ?? "Draft message pending.",
+  };
+}
+
+function mapApiCampaign(c: Record<string, unknown>, i: number): CampaignRow {
+  return {
+    id: String(c.id ?? `c-api-${i}`),
+    company: String(c.company_name ?? c.company ?? "—"),
+    role: String(c.job_title ?? c.role ?? "—"),
+    status: String(c.status ?? "Active"),
+    sent: Number(c.sent_count ?? c.messages_sent ?? 0),
+    last: c.updated_at ? new Date(String(c.updated_at)).toLocaleDateString() : "—",
+    contactsFound: Number(c.contacts_found ?? 0),
+    messagesDrafted: Number(c.messages_drafted ?? 0),
+    followUp: String(c.follow_up ?? "—"),
+    notes: String(c.notes ?? ""),
+  };
+}
 
 export default function Outreach({ openCampaign, selectedId, highlightDraftId }: {
   openCampaign: (c: Campaign) => void;
   selectedId?: string | null;
   highlightDraftId?: string | null;
 }) {
+  const { apiLive } = useDashboard();
+  const [drafts, setDrafts] = useState<Draft[]>(OUTREACH.drafts);
+  const [campaigns, setCampaigns] = useState<CampaignRow[]>(OUTREACH.campaigns);
   const [highlightDraft, setHighlightDraft] = useState<string | null>(highlightDraftId ?? null);
+
+  useEffect(() => {
+    if (!apiLive) return;
+    Promise.all([
+      apiListReferralRequests().catch(() => [] as ReferralRequest[]),
+      apiListOutreachCampaigns().catch(() => [] as Array<Record<string, unknown>>),
+    ]).then(([refs, camps]) => {
+      if (refs.length) setDrafts(refs.map(mapReferralToDraft));
+      if (camps.length) setCampaigns(camps.map(mapApiCampaign));
+    });
+  }, [apiLive]);
 
   useEffect(() => {
     if (!highlightDraftId) return;
@@ -33,20 +89,20 @@ export default function Outreach({ openCampaign, selectedId, highlightDraftId }:
         title="Warm paths, drafted — never sent without you."
         sub="Aviram finds the shortest route into each company and writes the intro. Nothing leaves until you press send."
         right={
-          <button type="button" className="btn btn-quiet btn-sm" onClick={() => showToast(STUB_MSG)}>
+          <button type="button" className="btn btn-quiet btn-sm" onClick={() => showToast(apiLive ? "Campaign creation opens from a job with a referral path." : STUB_MSG)}>
             New campaign
           </button>
         }
       />
-      {OUTREACH.drafts.length === 0 && OUTREACH.campaigns.length === 0 ? (
+      {drafts.length === 0 && campaigns.length === 0 ? (
         <EmptyState>No outreach drafts or campaigns yet.</EmptyState>
       ) : (
       <>
       <div className="sec-label">
         Referral drafts — awaiting your send <span className="ln" />
-        <span style={{ color: "var(--clay)", fontWeight: 600 }}>{OUTREACH.drafts.length}</span>
+        <span style={{ color: "var(--clay)", fontWeight: 600 }}>{drafts.length}</span>
       </div>
-      {OUTREACH.drafts.map((d) => (
+      {drafts.map((d) => (
         <div
           className={"draft-card" + (highlightDraft === d.id ? " sel" : "")}
           key={d.id}
@@ -57,12 +113,12 @@ export default function Outreach({ openCampaign, selectedId, highlightDraftId }:
             <div className="who"><div className="nm">{d.contact}</div><div className="rl">{d.rel}</div></div>
             <span className="draft-tag">DRAFT · {d.company}</span>
           </div>
-          <div className="body">"{d.body}"</div>
+          <div className="body">&quot;{d.body}&quot;</div>
           <div className="dc-act">
             <button
               type="button"
               className="btn btn-ghost btn-sm"
-              onClick={() => showToast("Send will be live once backend is connected — for now, copy the draft and send manually.", "warn")}
+              onClick={() => showToast(apiLive ? "Send is queued for your approval in the next release." : "Copy the draft and send manually in demo mode.", "warn")}
             >
               Send intro <span className="arr" style={arrIcon}><Icon name="send" /></span>
             </button>
@@ -78,7 +134,7 @@ export default function Outreach({ openCampaign, selectedId, highlightDraftId }:
         </div>
       ))}
       <div className="sec-label" style={{ marginTop: 30 }}>Campaigns <span className="ln" /></div>
-      {OUTREACH.campaigns.map((c) => (
+      {campaigns.map((c) => (
         <div
           key={c.id}
           className={"campaign-row" + (selectedId === c.id ? " sel" : "")}

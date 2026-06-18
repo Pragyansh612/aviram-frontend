@@ -9,18 +9,28 @@ import VaultPanel from "./VaultPanel";
 import type { Opp } from "./DetailPanel";
 import type { Campaign } from "./CampaignPanel";
 import type { VaultEntry } from "./VaultPanel";
+import WakeScreen from "./WakeScreen";
+import { DashboardProvider, useDashboard } from "@/contexts/DashboardContext";
 import {
+  clearAuth,
   clearFirstTimeBrief,
   consumeHighlightOutreachDraft,
+  consumeNavigatePage,
   consumeOpenApplication,
   consumeOpenPrepBrief,
+  consumeWakeScreen,
   getStoredProfile,
   isAuthed,
   isBriefSeen,
   isFirstTimeBrief,
   isOnboardingComplete,
   markBriefSeen,
+  requestNavigatePage,
+  requestOpenPrepBrief,
+  requestHighlightOutreachDraft,
+  touchLastSync,
 } from "./session";
+import { apiLogout } from "@/lib/api";
 import type { PageId } from "./shared";
 import CommandCenter from "./pages/CommandCenter";
 import Timeline from "./pages/Timeline";
@@ -56,32 +66,17 @@ function avatarInitial(): string {
   return name ? name[0]!.toUpperCase() : "P";
 }
 
-export default function DashboardApp() {
+function DashboardShell() {
   const router = useRouter();
-  const [ready, setReady] = useState(false);
-  const [firstTime] = useState(() => isFirstTimeBrief());
-  const [stage, setStage] = useState<"entry" | "app">(() => (isBriefSeen() ? "app" : "entry"));
   const [page, setPage] = useState<PageId>("command");
   const [theme, toggleTheme] = useTheme();
-  const [running, setRunning] = useState(true);
+  const { running, setRunning, apiLive } = useDashboard();
   const [opp, setOpp] = useState<Opp | null>(null);
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [vaultEntry, setVaultEntry] = useState<VaultEntry | null>(null);
   const [prepOpenBrief, setPrepOpenBrief] = useState(false);
   const [expandAppId, setExpandAppId] = useState<string | null>(null);
   const [highlightDraftId, setHighlightDraftId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!isAuthed()) {
-      router.replace("/login");
-      return;
-    }
-    if (!isOnboardingComplete()) {
-      router.replace("/onboarding");
-      return;
-    }
-    setReady(true);
-  }, [router]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -93,37 +88,30 @@ export default function DashboardApp() {
 
   const closePanels = () => { setOpp(null); setCampaign(null); setVaultEntry(null); };
 
-  const finishBrief = () => {
-    markBriefSeen();
-    if (firstTime) clearFirstTimeBrief();
-    setStage("app");
-  };
-
   const navigate = (p: PageId) => {
     setPrepOpenBrief(p === "prep" && consumeOpenPrepBrief());
-    if (p === "applications") {
-      setExpandAppId(consumeOpenApplication());
-    } else {
-      setExpandAppId(null);
-    }
-    if (p === "outreach") {
-      setHighlightDraftId(consumeHighlightOutreachDraft());
-    } else {
-      setHighlightDraftId(null);
-    }
+    setExpandAppId(p === "applications" ? consumeOpenApplication() : null);
+    setHighlightDraftId(p === "outreach" ? consumeHighlightOutreachDraft() : null);
     setPage(p);
     closePanels();
   };
-  const goTo = (p: string) => { finishBrief(); navigate(p as PageId); };
+
+  useEffect(() => {
+    const pending = consumeNavigatePage();
+    if (pending) navigate(pending as PageId);
+  }, []);
+
   const openOpp = (o: Opp) => { setCampaign(null); setVaultEntry(null); setOpp(o); };
   const openCampaign = (c: Campaign) => { setOpp(null); setVaultEntry(null); setCampaign(c); };
   const openVault = (v: VaultEntry) => { setOpp(null); setCampaign(null); setVaultEntry(v); };
 
-  if (!ready) return null;
+  const toggleRunning = () => { setRunning(!running); };
 
-  if (stage === "entry") {
-    return <Entry onEnter={finishBrief} goTo={goTo} firstTime={firstTime} />;
-  }
+  const handleLogout = async () => {
+    try { await apiLogout(); } catch { /* clear local anyway */ }
+    clearAuth();
+    router.replace("/login");
+  };
 
   let content: React.ReactNode;
   switch (page) {
@@ -136,7 +124,7 @@ export default function DashboardApp() {
     case "vault":         content = <ResearchVault openVault={openVault} selectedId={vaultEntry?.id} />; break;
     case "outreach":      content = <Outreach openCampaign={openCampaign} selectedId={campaign?.id} highlightDraftId={highlightDraftId} />; break;
     case "prep":          content = <InterviewPrep openBrief={prepOpenBrief} />; break;
-    case "settings":      content = <Settings running={running} toggleRunning={() => setRunning(r => !r)} />; break;
+    case "settings":      content = <Settings running={running} toggleRunning={toggleRunning} />; break;
     default:              content = <CommandCenter goTo={navigate} openOpp={openOpp} />;
   }
 
@@ -146,14 +134,16 @@ export default function DashboardApp() {
         page={page}
         setPage={navigate}
         running={running}
-        toggleRunning={() => setRunning(r => !r)}
+        toggleRunning={toggleRunning}
         toggleTheme={toggleTheme}
       />
       <div className="main">
         <div className="topbar2">
           <span className="crumb">Aviram · <b>{PAGE_TITLE[page]}</b></span>
           <span className="spacer" />
-          <span className="clock">{running ? "● live" : "❚❚ paused"}</span>
+          <span className="clock" title={apiLive ? "Connected to API" : "Demo mode — API offline"}>
+            {apiLive ? "● live" : "○ demo"} · {running ? "running" : "paused"}
+          </span>
           <button
             className="topbar-theme-toggle"
             onClick={toggleTheme}
@@ -168,6 +158,14 @@ export default function DashboardApp() {
               </g>
             </svg>
           </button>
+          <button
+            type="button"
+            className="btn btn-quiet btn-sm"
+            onClick={handleLogout}
+            title="Sign out"
+          >
+            Log out
+          </button>
           <span className="avatar">{avatarInitial()}</span>
         </div>
         {content}
@@ -178,5 +176,55 @@ export default function DashboardApp() {
       {vaultEntry && <VaultPanel entry={vaultEntry} onClose={closePanels} />}
       <ToastHost />
     </div>
+  );
+}
+
+export default function DashboardApp() {
+  const router = useRouter();
+  const [ready, setReady] = useState(false);
+  const [firstTime] = useState(() => isFirstTimeBrief());
+  const [stage, setStage] = useState<"entry" | "app">(() => (isBriefSeen() ? "app" : "entry"));
+  const [showWake, setShowWake] = useState(() => consumeWakeScreen());
+
+  useEffect(() => {
+    if (!isAuthed()) {
+      router.replace("/login");
+      return;
+    }
+    if (!isOnboardingComplete()) {
+      router.replace("/onboarding");
+      return;
+    }
+    setReady(true);
+    touchLastSync();
+  }, [router]);
+
+  const finishBrief = () => {
+    markBriefSeen();
+    if (firstTime) clearFirstTimeBrief();
+    setStage("app");
+  };
+
+  const goTo = (p: string) => {
+    requestNavigatePage(p);
+    if (p === "prep") requestOpenPrepBrief();
+    if (p === "outreach") requestHighlightOutreachDraft("d1");
+    finishBrief();
+  };
+
+  if (!ready) return null;
+
+  const inner = showWake ? (
+    <WakeScreen onDone={() => setShowWake(false)} />
+  ) : stage === "entry" ? (
+    <Entry onEnter={finishBrief} goTo={goTo} firstTime={firstTime} />
+  ) : (
+    <DashboardShell />
+  );
+
+  return (
+    <DashboardProvider>
+      {inner}
+    </DashboardProvider>
   );
 }

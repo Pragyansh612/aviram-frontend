@@ -4,6 +4,8 @@ import Link from "next/link";
 import { APPS, OPPS } from "@/components/dashboard/data";
 import { IPSChip, StatusPill, PageHead, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
+import { useDashboard } from "@/contexts/DashboardContext";
+import { apiUpdateApplicationOutcome } from "@/lib/api";
 import {
   getSessionApps,
   getAppOutcomeOverrides,
@@ -28,12 +30,19 @@ const OUTCOME_MAP: Record<typeof OUTCOME_OPTIONS[number], { status: string; stat
 
 type AppRow = (typeof APPS)[number];
 
-function findOppForApp(app: AppRow): Opp | undefined {
-  return OPPS.find((o) => o.company === app.company && o.role === app.role)
-    ?? OPPS.find((o) => o.company === app.company);
+const OUTCOME_API: Record<typeof OUTCOME_OPTIONS[number], string> = {
+  "Interview scheduled": "interview",
+  "Offer received": "offer",
+  "Rejected": "rejected",
+  "Withdrawn": "withdrawn",
+};
+
+function findOppForApp(app: AppRow, opps: Opp[]): Opp | undefined {
+  return opps.find((o) => o.company === app.company && o.role === app.role)
+    ?? opps.find((o) => o.company === app.company);
 }
 
-function mergeApps(): AppRow[] {
+function mergeApps(baseApps: AppRow[]): AppRow[] {
   const overrides = getAppOutcomeOverrides();
   const session = getSessionApps().map((s) => ({
     id: s.id,
@@ -48,7 +57,7 @@ function mergeApps(): AppRow[] {
     coverLetter: s.coverLetter,
     events: s.events,
   }));
-  const base = APPS.map((a) => {
+  const base = baseApps.map((a) => {
     const o = overrides[a.id];
     return o ? { ...a, status: o.status, statusLabel: o.statusLabel } : a;
   });
@@ -60,19 +69,22 @@ function mergeApps(): AppRow[] {
 }
 
 export default function Applications({ openOpp, expandAppId }: { openOpp?: (o: Opp) => void; expandAppId?: string | null }) {
+  const { applications: apiApps, opportunities, apiLive, refresh } = useDashboard();
+  const sourceApps = apiLive ? apiApps : (apiApps.length ? apiApps : APPS);
+  const sourceOpps = apiLive ? opportunities : (opportunities.length ? opportunities : OPPS);
   const [tab, setTab] = useState("all");
   const [expanded, setExpanded] = useState<string | null>(expandAppId ?? null);
   const [outcomeFor, setOutcomeFor] = useState<string | null>(null);
   const [outcomeSaved, setOutcomeSaved] = useState<Record<string, string>>({});
-  const [apps, setApps] = useState<AppRow[]>(() => mergeApps());
+  const [apps, setApps] = useState<AppRow[]>(() => mergeApps(sourceApps));
 
   useEffect(() => {
     if (expandAppId) {
       setExpanded(expandAppId);
       setTab("all");
     }
-    setApps(mergeApps());
-  }, [expandAppId]);
+    setApps(mergeApps(sourceApps));
+  }, [expandAppId, sourceApps]);
 
   const match = (a: AppRow) => {
     switch (tab) {
@@ -98,12 +110,18 @@ export default function Applications({ openOpp, expandAppId }: { openOpp?: (o: O
     setOutcomeFor(null);
   };
 
-  const handleOutcome = (appId: string, label: typeof OUTCOME_OPTIONS[number]) => {
+  const handleOutcome = async (appId: string, label: typeof OUTCOME_OPTIONS[number]) => {
     const mapped = OUTCOME_MAP[label];
     setAppOutcomeOverride(appId, { ...mapped, label });
-    setApps(mergeApps());
+    setApps(mergeApps(sourceApps));
     setOutcomeSaved((s) => ({ ...s, [appId]: label }));
     setOutcomeFor(null);
+    if (apiLive) {
+      try {
+        await apiUpdateApplicationOutcome(appId, OUTCOME_API[label]);
+        await refresh();
+      } catch { /* local override kept */ }
+    }
   };
 
   const emptyMessage = apps.length === 0
@@ -136,7 +154,7 @@ export default function Applications({ openOpp, expandAppId }: { openOpp?: (o: O
         {list.map((a) => {
           const isOpen = expanded === a.id;
           const withdrawn = a.status === "withdrawn";
-          const linkedOpp = findOppForApp(a);
+          const linkedOpp = findOppForApp(a, sourceOpps);
           return (
             <div key={a.id} className={"apps-block" + (isOpen ? " open" : "")}>
               <div
