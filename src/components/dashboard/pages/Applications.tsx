@@ -5,7 +5,6 @@ import { APPS, OPPS } from "@/components/dashboard/data";
 import { IPSChip, StatusPill, PageHead, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 import {
-  consumeOpenApplication,
   getSessionApps,
   getAppOutcomeOverrides,
   setAppOutcomeOverride,
@@ -60,21 +59,20 @@ function mergeApps(): AppRow[] {
   return [...sessionWithOverrides, ...base];
 }
 
-export default function Applications({ openOpp }: { openOpp?: (o: Opp) => void }) {
+export default function Applications({ openOpp, expandAppId }: { openOpp?: (o: Opp) => void; expandAppId?: string | null }) {
   const [tab, setTab] = useState("all");
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(expandAppId ?? null);
   const [outcomeFor, setOutcomeFor] = useState<string | null>(null);
   const [outcomeSaved, setOutcomeSaved] = useState<Record<string, string>>({});
   const [apps, setApps] = useState<AppRow[]>(() => mergeApps());
 
   useEffect(() => {
-    const target = consumeOpenApplication();
-    if (target) {
-      setExpanded(target);
+    if (expandAppId) {
+      setExpanded(expandAppId);
       setTab("all");
     }
     setApps(mergeApps());
-  }, []);
+  }, [expandAppId]);
 
   const match = (a: AppRow) => {
     switch (tab) {

@@ -2,7 +2,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { PREP } from "@/components/dashboard/data";
 import { PageHead, EmptyState } from "@/components/dashboard/shared";
-import { consumeOpenPrepBrief } from "@/components/dashboard/session";
 import { Icon } from "@/components/dashboard/icons";
 
 const arrIcon: React.CSSProperties = { width: 14, height: 14, display: "inline-block" };
@@ -20,8 +19,8 @@ function saveChecked(set: Set<string>) {
   try { localStorage.setItem(PREP_TASKS_KEY, JSON.stringify([...set])); } catch {}
 }
 
-export default function InterviewPrep() {
-  const [view, setView] = useState<"list" | "brief">("list");
+export default function InterviewPrep({ openBrief = false }: { openBrief?: boolean }) {
+  const [view, setView] = useState<"list" | "brief">(openBrief ? "brief" : "list");
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [qbFilter, setQbFilter] = useState<string>("All");
   const [taskPrep, setTaskPrep] = useState<string>("p1");
@@ -29,8 +28,8 @@ export default function InterviewPrep() {
 
   useEffect(() => { setChecked(loadChecked()); }, []);
   useEffect(() => {
-    if (consumeOpenPrepBrief()) setView("brief");
-  }, []);
+    if (openBrief) setView("brief");
+  }, [openBrief]);
 
   const toggleTask = (id: string) => {
     setChecked((prev) => {

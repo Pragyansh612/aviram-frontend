@@ -240,10 +240,15 @@ export default function Entry({
   firstTime?: boolean;
 }) {
   const [stage, setStage] = useState<"active" | "brief">("active");
-  const [variant, setVariant] = useState<"letter" | "terminal">(() => {
-    try { return (localStorage.getItem("aviram-brief-variant") as "letter" | "terminal") || "letter"; } catch { return "letter"; }
-  });
+  const [variant, setVariant] = useState<"letter" | "terminal">("letter");
   const firstName = getDisplayName();
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("aviram-brief-variant") as "letter" | "terminal" | null;
+      if (saved === "letter" || saved === "terminal") setVariant(saved);
+    } catch {}
+  }, []);
 
   const pick = (v: "letter" | "terminal") => {
     setVariant(v);

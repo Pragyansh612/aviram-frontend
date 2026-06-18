@@ -11,6 +11,9 @@ import type { Campaign } from "./CampaignPanel";
 import type { VaultEntry } from "./VaultPanel";
 import {
   clearFirstTimeBrief,
+  consumeHighlightOutreachDraft,
+  consumeOpenApplication,
+  consumeOpenPrepBrief,
   getStoredProfile,
   isAuthed,
   isBriefSeen,
@@ -64,6 +67,9 @@ export default function DashboardApp() {
   const [opp, setOpp] = useState<Opp | null>(null);
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [vaultEntry, setVaultEntry] = useState<VaultEntry | null>(null);
+  const [prepOpenBrief, setPrepOpenBrief] = useState(false);
+  const [expandAppId, setExpandAppId] = useState<string | null>(null);
+  const [highlightDraftId, setHighlightDraftId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAuthed()) {
@@ -93,7 +99,21 @@ export default function DashboardApp() {
     setStage("app");
   };
 
-  const navigate = (p: PageId) => { setPage(p); closePanels(); };
+  const navigate = (p: PageId) => {
+    setPrepOpenBrief(p === "prep" && consumeOpenPrepBrief());
+    if (p === "applications") {
+      setExpandAppId(consumeOpenApplication());
+    } else {
+      setExpandAppId(null);
+    }
+    if (p === "outreach") {
+      setHighlightDraftId(consumeHighlightOutreachDraft());
+    } else {
+      setHighlightDraftId(null);
+    }
+    setPage(p);
+    closePanels();
+  };
   const goTo = (p: string) => { finishBrief(); navigate(p as PageId); };
   const openOpp = (o: Opp) => { setCampaign(null); setVaultEntry(null); setOpp(o); };
   const openCampaign = (c: Campaign) => { setOpp(null); setVaultEntry(null); setCampaign(c); };
@@ -110,12 +130,12 @@ export default function DashboardApp() {
     case "command":       content = <CommandCenter goTo={navigate} openOpp={openOpp} />; break;
     case "timeline":      content = <Timeline goTo={navigate} />; break;
     case "opportunities": content = <Opportunities openOpp={openOpp} selectedId={opp?.id} />; break;
-    case "applications":  content = <Applications openOpp={openOpp} />; break;
+    case "applications":  content = <Applications openOpp={openOpp} expandAppId={expandAppId} />; break;
     case "resume":        content = <ResumeLab />; break;
     case "intelligence":  content = <CareerIntelligence />; break;
     case "vault":         content = <ResearchVault openVault={openVault} selectedId={vaultEntry?.id} />; break;
-    case "outreach":      content = <Outreach openCampaign={openCampaign} selectedId={campaign?.id} />; break;
-    case "prep":          content = <InterviewPrep />; break;
+    case "outreach":      content = <Outreach openCampaign={openCampaign} selectedId={campaign?.id} highlightDraftId={highlightDraftId} />; break;
+    case "prep":          content = <InterviewPrep openBrief={prepOpenBrief} />; break;
     case "settings":      content = <Settings running={running} toggleRunning={() => setRunning(r => !r)} />; break;
     default:              content = <CommandCenter goTo={navigate} openOpp={openOpp} />;
   }

@@ -35,13 +35,21 @@ const emptyProfile: StoredProfile = {
 export default function OnboardingFlow() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("profile");
-  const [profile, setProfile] = useState<StoredProfile>(() => getStoredProfile() ?? emptyProfile);
+  const [profile, setProfile] = useState<StoredProfile>(emptyProfile);
   const [resumeName, setResumeName] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
+    const stored = getStoredProfile();
+    if (stored) setProfile({ ...emptyProfile, ...stored });
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
     if (!isAuthed()) router.replace("/login");
     else if (isOnboardingComplete()) router.replace("/dashboard");
-  }, [router]);
+  }, [router, hydrated]);
 
   const stepIdx = STEPS.indexOf(step);
   const progress = ((stepIdx + 1) / STEPS.length) * 100;
@@ -174,7 +182,8 @@ export default function OnboardingFlow() {
             className="btn btn-primary"
             onClick={next}
             disabled={
-              (step === "profile" && (!profile.name.trim() || !profile.phone.trim() || !profile.linkedin.trim()))
+              !hydrated
+              || (step === "profile" && (!profile.name.trim() || !profile.phone.trim() || !profile.linkedin.trim()))
               || (step === "resume" && !resumeName)
             }
           >

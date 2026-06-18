@@ -4,29 +4,27 @@ import { OUTREACH } from "@/components/dashboard/data";
 import { PageHead, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 import { showToast } from "@/components/dashboard/Toast";
-import { consumeHighlightOutreachDraft } from "@/components/dashboard/session";
 import type { Campaign } from "@/components/dashboard/CampaignPanel";
 
 const arrIcon: React.CSSProperties = { width: 14, height: 14, display: "inline-block" };
 const STUB_MSG = "This will be available when connected to backend.";
 
-export default function Outreach({ openCampaign, selectedId }: {
+export default function Outreach({ openCampaign, selectedId, highlightDraftId }: {
   openCampaign: (c: Campaign) => void;
   selectedId?: string | null;
+  highlightDraftId?: string | null;
 }) {
-  const [highlightDraft, setHighlightDraft] = useState<string | null>(null);
+  const [highlightDraft, setHighlightDraft] = useState<string | null>(highlightDraftId ?? null);
 
   useEffect(() => {
-    const id = consumeHighlightOutreachDraft();
-    if (id) {
-      setHighlightDraft(id);
-      setTimeout(() => {
-        document.getElementById(`draft-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
-      }, 100);
-      const t = setTimeout(() => setHighlightDraft(null), 4000);
-      return () => clearTimeout(t);
-    }
-  }, []);
+    if (!highlightDraftId) return;
+    setHighlightDraft(highlightDraftId);
+    const scrollT = setTimeout(() => {
+      document.getElementById(`draft-${highlightDraftId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 100);
+    const clearT = setTimeout(() => setHighlightDraft(null), 4000);
+    return () => { clearTimeout(scrollT); clearTimeout(clearT); };
+  }, [highlightDraftId]);
 
   return (
     <div className="page">
