@@ -15,7 +15,7 @@
   --ink:        #111111;
   --ink-2:      #383530;
   --ink-3:      #6B6B6B;
-  --ink-4:      #9A9488;
+  --ink-4:      #9A9A88;
 
   --accent:     #234033;
   --accent-2:   #2E5743;
@@ -1204,7 +1204,8 @@ section { position: relative; }
 /* ============================================================
    OUTREACH (dashboard)
    ============================================================ */
-.draft-card { background: var(--paper); border: 1px solid var(--line); border-radius: 13px; padding: 20px 22px; margin-bottom: 12px; }
+.draft-card { background: var(--paper); border: 1px solid var(--line); border-radius: 13px; padding: 20px 22px; margin-bottom: 12px; transition: border-color .2s var(--ease), background .2s var(--ease); }
+.draft-card.sel { border-color: var(--accent-edge); background: color-mix(in srgb, var(--accent-tint) 35%, var(--paper)); }
 .draft-card .dc-head { display: flex; align-items: center; gap: 12px; margin-bottom: 13px; }
 .draft-card .who { flex: 1; }
 .draft-card .who .nm { font-size: 14px; font-weight: 600; }
@@ -1397,7 +1398,19 @@ section { position: relative; }
   .calib { display: none; }
   .status-pill { justify-content: center; padding: 8px; }
   .status-pill .st-label, .status-pill .st-meta { display: none; }
-  .status-confirm { display: none; }
+  .status-confirm {
+    display: block;
+    position: fixed;
+    left: calc(var(--sidebar-w-icon) + 8px);
+    bottom: 72px;
+    z-index: 100;
+    width: 220px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px 14px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+  }
   .sb-foot-row { justify-content: center; }
   .theme-toggle.sb-theme { width: 34px; height: 34px; }
   .main { margin-left: 0; }

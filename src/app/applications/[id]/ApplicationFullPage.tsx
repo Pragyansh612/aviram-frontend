@@ -1,12 +1,35 @@
 "use client";
 import Link from "next/link";
-import type { APPS } from "@/components/dashboard/data";
+import { APPS } from "@/components/dashboard/data";
 import { IPSChip, StatusPill } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
+import { getSessionApps, getAppOutcomeOverrides } from "@/components/dashboard/session";
 
 type App = (typeof APPS)[number];
 
-export default function ApplicationFullPage({ app }: { app: App | null }) {
+function resolveApp(appId: string): App | null {
+  const base = APPS.find((a) => a.id === appId);
+  const session = getSessionApps().find((a) => a.id === appId);
+  const raw = base ?? (session ? {
+    id: session.id,
+    company: session.company,
+    role: session.role,
+    platform: session.platform,
+    status: session.status,
+    statusLabel: session.statusLabel,
+    date: session.date,
+    ips: session.ips,
+    variant: session.variant,
+    coverLetter: session.coverLetter,
+    events: session.events,
+  } : null);
+  if (!raw) return null;
+  const override = getAppOutcomeOverrides()[appId];
+  return override ? { ...raw, status: override.status, statusLabel: override.statusLabel } : raw;
+}
+
+export default function ApplicationFullPage({ appId }: { appId: string }) {
+  const app = resolveApp(appId);
   if (!app) {
     return (
       <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", fontFamily: "var(--sans, sans-serif)", background: "var(--cream, #F7F4EE)" }}>

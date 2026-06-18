@@ -1,8 +1,15 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import { APPS, OPPS } from "@/components/dashboard/data";
 import { IPSChip, StatusPill, PageHead, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
+import {
+  consumeOpenApplication,
+  getSessionApps,
+  getAppOutcomeOverrides,
+  setAppOutcomeOverride,
+} from "@/components/dashboard/session";
 import type { Opp } from "@/components/dashboard/DetailPanel";
 
 const APP_TABS = [
@@ -13,9 +20,44 @@ const APP_TABS = [
 
 const OUTCOME_OPTIONS = ["Interview scheduled", "Offer received", "Rejected", "Withdrawn"] as const;
 
-function findOppForApp(app: typeof APPS[0]): Opp | undefined {
+const OUTCOME_MAP: Record<typeof OUTCOME_OPTIONS[number], { status: string; statusLabel: string }> = {
+  "Interview scheduled": { status: "interview", statusLabel: "Interview Scheduled" },
+  "Offer received": { status: "offer", statusLabel: "Offer Received" },
+  "Rejected": { status: "rejected", statusLabel: "Rejected" },
+  "Withdrawn": { status: "withdrawn", statusLabel: "Withdrawn" },
+};
+
+type AppRow = (typeof APPS)[number];
+
+function findOppForApp(app: AppRow): Opp | undefined {
   return OPPS.find((o) => o.company === app.company && o.role === app.role)
     ?? OPPS.find((o) => o.company === app.company);
+}
+
+function mergeApps(): AppRow[] {
+  const overrides = getAppOutcomeOverrides();
+  const session = getSessionApps().map((s) => ({
+    id: s.id,
+    company: s.company,
+    role: s.role,
+    platform: s.platform,
+    status: s.status,
+    statusLabel: s.statusLabel,
+    date: s.date,
+    ips: s.ips,
+    variant: s.variant,
+    coverLetter: s.coverLetter,
+    events: s.events,
+  }));
+  const base = APPS.map((a) => {
+    const o = overrides[a.id];
+    return o ? { ...a, status: o.status, statusLabel: o.statusLabel } : a;
+  });
+  const sessionWithOverrides = session.map((a) => {
+    const o = overrides[a.id];
+    return o ? { ...a, status: o.status, statusLabel: o.statusLabel } : a;
+  });
+  return [...sessionWithOverrides, ...base];
 }
 
 export default function Applications({ openOpp }: { openOpp?: (o: Opp) => void }) {
@@ -23,8 +65,18 @@ export default function Applications({ openOpp }: { openOpp?: (o: Opp) => void }
   const [expanded, setExpanded] = useState<string | null>(null);
   const [outcomeFor, setOutcomeFor] = useState<string | null>(null);
   const [outcomeSaved, setOutcomeSaved] = useState<Record<string, string>>({});
+  const [apps, setApps] = useState<AppRow[]>(() => mergeApps());
 
-  const match = (a: typeof APPS[0]) => {
+  useEffect(() => {
+    const target = consumeOpenApplication();
+    if (target) {
+      setExpanded(target);
+      setTab("all");
+    }
+    setApps(mergeApps());
+  }, []);
+
+  const match = (a: AppRow) => {
     switch (tab) {
       case "applied": return a.status === "applied";
       case "response": return a.status === "response";
@@ -33,21 +85,30 @@ export default function Applications({ openOpp }: { openOpp?: (o: Opp) => void }
       default: return true;
     }
   };
-  const list = APPS.filter(match);
-  const counts = {
-    all: APPS.length,
-    applied: APPS.filter(a => a.status === "applied").length,
-    response: APPS.filter(a => a.status === "response").length,
-    interview: APPS.filter(a => a.status === "interview").length,
-    closed: APPS.filter(a => ["rejected","offer","withdrawn"].includes(a.status)).length,
-  };
+
+  const list = useMemo(() => apps.filter(match), [apps, tab]);
+  const counts = useMemo(() => ({
+    all: apps.length,
+    applied: apps.filter((a) => a.status === "applied").length,
+    response: apps.filter((a) => a.status === "response").length,
+    interview: apps.filter((a) => a.status === "interview").length,
+    closed: apps.filter((a) => ["rejected", "offer", "withdrawn"].includes(a.status)).length,
+  }), [apps]);
 
   const toggle = (id: string) => {
     setExpanded(expanded === id ? null : id);
     setOutcomeFor(null);
   };
 
-  const emptyMessage = APPS.length === 0
+  const handleOutcome = (appId: string, label: typeof OUTCOME_OPTIONS[number]) => {
+    const mapped = OUTCOME_MAP[label];
+    setAppOutcomeOverride(appId, { ...mapped, label });
+    setApps(mergeApps());
+    setOutcomeSaved((s) => ({ ...s, [appId]: label }));
+    setOutcomeFor(null);
+  };
+
+  const emptyMessage = apps.length === 0
     ? "No applications yet."
     : "No applications match this filter.";
 
@@ -124,7 +185,7 @@ export default function Applications({ openOpp }: { openOpp?: (o: Opp) => void }
                             key={o}
                             type="button"
                             className="btn btn-ghost btn-sm"
-                            onClick={() => { setOutcomeSaved((s) => ({ ...s, [a.id]: o })); setOutcomeFor(null); }}
+                            onClick={() => handleOutcome(a.id, o)}
                           >
                             {o}
                           </button>
@@ -134,13 +195,16 @@ export default function Applications({ openOpp }: { openOpp?: (o: Opp) => void }
                     ) : (
                       <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOutcomeFor(a.id)}>Update outcome</button>
                     )}
+                    <Link className="btn btn-quiet btn-sm" href={`/applications/${a.id}`} target="_blank" rel="noopener noreferrer">
+                      Open full page →
+                    </Link>
                     {linkedOpp && openOpp && (
                       <button
                         type="button"
                         className="btn btn-quiet btn-sm"
                         onClick={() => openOpp(linkedOpp)}
                       >
-                        View full detail →
+                        View opportunity →
                       </button>
                     )}
                   </div>

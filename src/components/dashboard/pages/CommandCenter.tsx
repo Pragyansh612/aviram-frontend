@@ -3,7 +3,7 @@ import { useState } from "react";
 import { OPPS, ACTIVITY_RANGES } from "@/components/dashboard/data";
 import { IPSChip, Urgent, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
-import { requestOpenPrepBrief } from "@/components/dashboard/session";
+import { requestOpenPrepBrief, requestOpenApplication, requestHighlightOutreachDraft } from "@/components/dashboard/session";
 import type { PageId } from "@/components/dashboard/shared";
 
 type RangeKey = "24h" | "7d" | "30d";
@@ -83,6 +83,8 @@ export default function CommandCenter({ goTo, openOpp }: {
 
   const handleAction = (a: typeof ACTION_ITEMS[0]) => {
     if (a.to === "prep" && a.btn === "Open Brief") requestOpenPrepBrief();
+    if (a.to === "outreach" && a.btn === "Review Draft") requestHighlightOutreachDraft("d1");
+    if (a.to === "applications" && a.btn === "Respond") requestOpenApplication("a3");
     goTo(a.to);
   };
 

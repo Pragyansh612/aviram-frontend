@@ -1,9 +1,17 @@
 "use client";
 import { useState, useEffect } from "react";
-import { TIMELINE } from "@/components/dashboard/data";
+import { TIMELINE, APPS } from "@/components/dashboard/data";
 import { IPSChip, PageHead, EmptyState, useStagger } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
-import { getSkippedOpps, requestOpenPrepBrief, type SkippedOpp } from "@/components/dashboard/session";
+import {
+  getSkippedOpps,
+  getSessionTimelineEvents,
+  requestOpenPrepBrief,
+  requestOpenApplication,
+  requestHighlightOutreachDraft,
+  type SkippedOpp,
+  type SessionTimelineEvent,
+} from "@/components/dashboard/session";
 import type { PageId } from "@/components/dashboard/shared";
 
 const arrIcon: React.CSSProperties = { width: 14, height: 14, display: "inline-block" };
@@ -19,58 +27,114 @@ const TL_ICON: Record<string, string> = {
   scored: "target", skipped: "skip", response: "outreach",
 };
 
+type TlEvent = {
+  time: string;
+  type: string;
+  title: string;
+  company: string;
+  role: string;
+  extra: string;
+  action: string | null;
+  ips: number | null;
+  appId?: string;
+  draftId?: string;
+};
+
+function findAppId(company: string, role?: string): string | undefined {
+  const app = APPS.find((a) => a.company === company && (!role || a.role === role))
+    ?? APPS.find((a) => a.company === company);
+  return app?.id;
+}
+
+function referralDraftId(company: string): string | undefined {
+  if (company === "Stripe") return "d1";
+  if (company === "Linear") return "d2";
+  return undefined;
+}
+
 export default function Timeline({ goTo }: { goTo: (p: PageId) => void }) {
   const [filter, setFilter] = useState("all");
   const [runtimeSkipped, setRuntimeSkipped] = useState<SkippedOpp[]>([]);
+  const [sessionEvents, setSessionEvents] = useState<SessionTimelineEvent[]>([]);
 
-  // Refresh skipped list each time Timeline mounts (picks up skips from Opportunities page)
   useEffect(() => {
     setRuntimeSkipped(getSkippedOpps());
+    setSessionEvents(getSessionTimelineEvents());
   }, []);
 
-  const match = (e: typeof TIMELINE[0]["events"][0]) =>
+  const match = (e: TlEvent) =>
     filter === "all" ? true : filter === "response" ? e.type === "response" : e.type === filter;
 
-  // Inject runtime-skipped opps as synthetic events into "Today" group
-  const syntheticSkipped: typeof TIMELINE[0]["events"] = runtimeSkipped.map((s) => ({
+  const syntheticSkipped: TlEvent[] = runtimeSkipped.map((s) => ({
     type: "skipped",
     time: s.time,
     title: "Skipped",
     company: s.company,
     role: s.role,
     extra: "",
-    action: null as unknown as string,
-    ips: null as unknown as number,
+    action: null,
+    ips: null,
   }));
 
-  const todayGroup = {
-    day: "Today",
-    events: syntheticSkipped.filter(() => filter === "all" || filter === "skipped"),
-  };
+  const sessionAsTl: TlEvent[] = sessionEvents.map((e) => ({
+    type: e.type,
+    time: e.time,
+    title: e.title,
+    company: e.company,
+    role: e.role,
+    extra: e.extra,
+    action: e.action,
+    ips: e.ips,
+    appId: e.appId,
+    draftId: e.draftId,
+  }));
 
-  const staticGroups = TIMELINE.map((group) => ({
+  const todayStatic: TlEvent[] = (TIMELINE.find((g) => g.day === "Today")?.events ?? []).map((e) => ({
+    ...e,
+    action: e.action,
+    ips: e.ips,
+  }));
+  const todayMerged: TlEvent[] = [
+    ...sessionAsTl,
+    ...syntheticSkipped,
+    ...todayStatic,
+  ].filter(match);
+
+  const otherGroups = TIMELINE.filter((g) => g.day !== "Today").map((group) => ({
     day: group.day,
-    events: group.events.filter(match),
+    events: group.events.map((e) => ({ ...e, action: e.action, ips: e.ips } as TlEvent)).filter(match),
   })).filter((g) => g.events.length > 0);
 
-  // Merge: if static data already has "Today" merge into it, else prepend if non-empty
-  const groups = (() => {
-    const existing = staticGroups.find((g) => g.day === "Today");
-    if (existing) {
-      existing.events = [...todayGroup.events, ...existing.events];
-      return staticGroups;
-    }
-    return todayGroup.events.length > 0 ? [todayGroup, ...staticGroups] : staticGroups;
-  })();
+  const groups = todayMerged.length > 0
+    ? [{ day: "Today", events: todayMerged }, ...otherGroups]
+    : otherGroups;
 
-  const hasAnyEvents = TIMELINE.some((g) => g.events.length > 0) || runtimeSkipped.length > 0;
+  const hasAnyEvents = TIMELINE.some((g) => g.events.length > 0) || runtimeSkipped.length > 0 || sessionEvents.length > 0;
   const totalEvents = groups.reduce((n, g) => n + g.events.length, 0);
   const shown = useStagger(totalEvents, totalEvents > 0, 50, 60);
   let eventIdx = 0;
 
-  const handleTimelineAction = (type: string) => {
-    if (type === "interview") requestOpenPrepBrief();
-    goTo(type === "interview" ? "prep" : type === "referral" ? "outreach" : "applications");
+  const handleTimelineAction = (e: TlEvent) => {
+    if (e.type === "interview") {
+      requestOpenPrepBrief();
+      goTo("prep");
+      return;
+    }
+    if (e.type === "resume") {
+      goTo("resume");
+      return;
+    }
+    if (e.type === "referral") {
+      const draftId = e.draftId ?? referralDraftId(e.company);
+      if (draftId) requestHighlightOutreachDraft(draftId);
+      goTo("outreach");
+      return;
+    }
+    if (e.type === "applied" || e.type === "response") {
+      const appId = e.appId ?? findAppId(e.company, e.role);
+      if (appId) requestOpenApplication(appId);
+      goTo("applications");
+    }
   };
 
   return (
@@ -116,7 +180,7 @@ export default function Timeline({ goTo }: { goTo: (p: PageId) => void }) {
                         <div className="tl-row-act">
                           <button
                             className="btn-link"
-                            onClick={() => handleTimelineAction(e.type)}
+                            onClick={() => handleTimelineAction(e)}
                           >
                             {e.action} <span className="arr" style={arrIcon}><Icon name="arrow" /></span>
                           </button>

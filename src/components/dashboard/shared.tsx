@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Icon } from "./icons";
 import { USER } from "./data";
+import { getCalibrationCount } from "./session";
 
 export type PageId =
   | "command" | "timeline" | "opportunities" | "applications"
@@ -162,7 +163,7 @@ export const NAV_ITEMS: { id?: PageId; label?: string; icon?: string; div?: bool
 export const MOBILE_TABS: { id: PageId; label: string; icon: string }[] = [
   { id: "command",       label: "Command",  icon: "command" },
   { id: "timeline",      label: "Timeline", icon: "timeline" },
-  { id: "opportunities", label: "Queue",    icon: "opportunities" },
+  { id: "opportunities", label: "Opportunities", icon: "opportunities" },
   { id: "prep",          label: "Prep",     icon: "prep" },
   { id: "settings",      label: "Settings", icon: "settings" },
 ];
@@ -188,6 +189,7 @@ export function Sidebar({ page, setPage, running, toggleRunning, toggleTheme }: 
 }) {
   const [confirmPause, setConfirmPause] = useState(false);
   const u = USER;
+  const calibration = getCalibrationCount() ?? u.calibration;
 
   const handleStatusClick = () => {
     if (running) setConfirmPause(true);
@@ -228,9 +230,9 @@ export function Sidebar({ page, setPage, running, toggleRunning, toggleTheme }: 
         <div className="calib">
           <div className="arch">
             <span className="tag">[{u.archetype}]</span>
-            <span className="frac">{u.calibration}/{u.calibrationMax}</span>
+            <span className="frac">{calibration}/{u.calibrationMax}</span>
           </div>
-          <div className="bar"><i style={{ width: (u.calibration / u.calibrationMax * 100) + "%" }} /></div>
+          <div className="bar"><i style={{ width: (calibration / u.calibrationMax * 100) + "%" }} /></div>
         </div>
         {confirmPause && (
           <div className="status-confirm">

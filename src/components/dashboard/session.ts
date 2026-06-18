@@ -99,6 +99,8 @@ export function removeSkippedOpp(id: string): void {
 
 // ---- deep-link flags (action items → open specific views) ----
 export const OPEN_PREP_BRIEF_KEY = "aviram-open-prep-brief";
+export const OPEN_APPLICATION_KEY = "aviram-open-application";
+export const HIGHLIGHT_OUTREACH_DRAFT_KEY = "aviram-highlight-outreach-draft";
 
 export function requestOpenPrepBrief(): void {
   try { sessionStorage.setItem(OPEN_PREP_BRIEF_KEY, "1"); } catch {}
@@ -110,6 +112,154 @@ export function consumeOpenPrepBrief(): boolean {
     if (v) sessionStorage.removeItem(OPEN_PREP_BRIEF_KEY);
     return v;
   } catch { return false; }
+}
+
+export function requestOpenApplication(appId: string): void {
+  try { sessionStorage.setItem(OPEN_APPLICATION_KEY, appId); } catch {}
+}
+
+export function consumeOpenApplication(): string | null {
+  try {
+    const id = sessionStorage.getItem(OPEN_APPLICATION_KEY);
+    if (id) sessionStorage.removeItem(OPEN_APPLICATION_KEY);
+    return id;
+  } catch { return null; }
+}
+
+export function requestHighlightOutreachDraft(draftId: string): void {
+  try { sessionStorage.setItem(HIGHLIGHT_OUTREACH_DRAFT_KEY, draftId); } catch {}
+}
+
+export function consumeHighlightOutreachDraft(): string | null {
+  try {
+    const id = sessionStorage.getItem(HIGHLIGHT_OUTREACH_DRAFT_KEY);
+    if (id) sessionStorage.removeItem(HIGHLIGHT_OUTREACH_DRAFT_KEY);
+    return id;
+  } catch { return null; }
+}
+
+// ---- session applications + timeline (bulk apply, outcomes) ----
+export type SessionApp = {
+  id: string;
+  company: string;
+  role: string;
+  platform: string;
+  status: string;
+  statusLabel: string;
+  date: string;
+  ips: number;
+  variant: string;
+  coverLetter: string;
+  events: { time: string; text: string }[];
+  oppId?: string;
+};
+
+export type SessionTimelineEvent = {
+  time: string;
+  type: string;
+  title: string;
+  company: string;
+  role: string;
+  extra: string;
+  action: string | null;
+  ips: number | null;
+  appId?: string;
+  draftId?: string;
+};
+
+const SESSION_APPS_KEY = "aviram-session-apps";
+const SESSION_TIMELINE_KEY = "aviram-session-timeline";
+const APP_OUTCOMES_KEY = "aviram-app-outcomes";
+const SETTINGS_PREFS_KEY = "aviram-settings-prefs";
+const SETTINGS_RULES_KEY = "aviram-settings-rules";
+const CALIBRATION_KEY = "aviram-calibration";
+
+export function getSessionApps(): SessionApp[] {
+  try {
+    const raw = sessionStorage.getItem(SESSION_APPS_KEY);
+    return raw ? JSON.parse(raw) as SessionApp[] : [];
+  } catch { return []; }
+}
+
+export function addSessionApps(apps: SessionApp[]): void {
+  try {
+    const existing = getSessionApps();
+    const ids = new Set(existing.map((a) => a.id));
+    const merged = [...apps.filter((a) => !ids.has(a.id)), ...existing];
+    sessionStorage.setItem(SESSION_APPS_KEY, JSON.stringify(merged));
+  } catch {}
+}
+
+export function getSessionTimelineEvents(): SessionTimelineEvent[] {
+  try {
+    const raw = sessionStorage.getItem(SESSION_TIMELINE_KEY);
+    return raw ? JSON.parse(raw) as SessionTimelineEvent[] : [];
+  } catch { return []; }
+}
+
+export function addSessionTimelineEvents(events: SessionTimelineEvent[]): void {
+  try {
+    const merged = [...events, ...getSessionTimelineEvents()];
+    sessionStorage.setItem(SESSION_TIMELINE_KEY, JSON.stringify(merged));
+  } catch {}
+}
+
+export type AppOutcomeOverride = { status: string; statusLabel: string; label: string };
+
+export function getAppOutcomeOverrides(): Record<string, AppOutcomeOverride> {
+  try {
+    const raw = sessionStorage.getItem(APP_OUTCOMES_KEY);
+    return raw ? JSON.parse(raw) as Record<string, AppOutcomeOverride> : {};
+  } catch { return {}; }
+}
+
+export function setAppOutcomeOverride(appId: string, override: AppOutcomeOverride): void {
+  try {
+    const all = getAppOutcomeOverrides();
+    all[appId] = override;
+    sessionStorage.setItem(APP_OUTCOMES_KEY, JSON.stringify(all));
+  } catch {}
+}
+
+export type StoredPrefs = Record<string, string>;
+export type StoredRules = Record<string, string>;
+
+export function getStoredPrefs(): StoredPrefs | null {
+  try {
+    const raw = localStorage.getItem(SETTINGS_PREFS_KEY);
+    return raw ? JSON.parse(raw) as StoredPrefs : null;
+  } catch { return null; }
+}
+
+export function saveStoredPrefs(prefs: StoredPrefs): void {
+  try { localStorage.setItem(SETTINGS_PREFS_KEY, JSON.stringify(prefs)); } catch {}
+}
+
+export function getStoredRules(): StoredRules | null {
+  try {
+    const raw = localStorage.getItem(SETTINGS_RULES_KEY);
+    return raw ? JSON.parse(raw) as StoredRules : null;
+  } catch { return null; }
+}
+
+export function saveStoredRules(rules: StoredRules): void {
+  try { localStorage.setItem(SETTINGS_RULES_KEY, JSON.stringify(rules)); } catch {}
+}
+
+export function getCalibrationCount(): number | null {
+  try {
+    const raw = localStorage.getItem(CALIBRATION_KEY);
+    return raw != null ? parseInt(raw, 10) : null;
+  } catch { return null; }
+}
+
+export function setCalibrationCount(n: number): void {
+  try { localStorage.setItem(CALIBRATION_KEY, String(n)); } catch {}
+}
+
+export function incrementCalibration(by: number): void {
+  const current = getCalibrationCount() ?? 0;
+  setCalibrationCount(current + by);
 }
 
 // ---- login timestamp (for "active for X hours" computation) ----
@@ -152,4 +302,5 @@ export function beginFirstDashboardSession(): void {
   setFirstTimeBrief();
   markOnboardingComplete();
   recordLoginTime();
+  setCalibrationCount(0);
 }

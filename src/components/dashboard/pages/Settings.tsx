@@ -1,7 +1,15 @@
 "use client";
 import { useState } from "react";
 import { USER, MISSIONS } from "@/components/dashboard/data";
-import { getStoredProfile } from "@/components/dashboard/session";
+import {
+  getStoredProfile,
+  saveStoredProfile,
+  getStoredPrefs,
+  saveStoredPrefs,
+  getStoredRules,
+  saveStoredRules,
+  getCalibrationCount,
+} from "@/components/dashboard/session";
 import { PageHead } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 import { showToast } from "@/components/dashboard/Toast";
@@ -52,23 +60,32 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
   });
 
   // Editable preferences state
-  const [prefs, setPrefs] = useState({
-    Roles: "Backend, Distributed Systems, Platform",
-    Locations: "Remote · Bengaluru",
-    "Remote preference": "Remote-first",
-    "Salary floor": "₹38 LPA",
-    Industries: "Fintech, Dev tools, Infra",
-    "Opportunity type": "Full-time",
+  const [prefs, setPrefs] = useState(() => {
+    const stored = getStoredPrefs();
+    const profile = getStoredProfile();
+    return {
+      Roles: stored?.Roles ?? profile?.roles ?? "Backend, Distributed Systems, Platform",
+      Locations: stored?.Locations ?? profile?.locations ?? "Remote · Bengaluru",
+      "Remote preference": stored?.["Remote preference"] ?? "Remote-first",
+      "Salary floor": stored?.["Salary floor"] ?? profile?.salaryFloor ?? "₹38 LPA",
+      Industries: stored?.Industries ?? "Fintech, Dev tools, Infra",
+      "Opportunity type": stored?.["Opportunity type"] ?? "Full-time",
+    };
   });
 
-  // Editable auto-apply rules state
-  const [rules, setRules] = useState({
-    "IPS threshold": "70",
-    "Daily application limit": "20",
-    "Blocked companies": "3 added",
-    "Timing window": "Thu 8–11 AM",
-    "Quality score minimum": "High",
+  const [rules, setRules] = useState(() => {
+    const stored = getStoredRules();
+    return {
+      "IPS threshold": stored?.["IPS threshold"] ?? "70",
+      "Daily application limit": stored?.["Daily application limit"] ?? "20",
+      "Blocked companies": stored?.["Blocked companies"] ?? "3 added",
+      "Timing window": stored?.["Timing window"] ?? "Thu 8–11 AM",
+      "Quality score minimum": stored?.["Quality score minimum"] ?? "High",
+    };
   });
+
+  const calibration = getCalibrationCount() ?? USER.calibration;
+  const calibrationMax = USER.calibrationMax;
 
   const conns: [string, boolean][] = [
     ["Greenhouse", true], ["Ashby", true], ["Lever", true],
@@ -76,6 +93,20 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
   ];
 
   const handleSave = (section: string) => {
+    if (section === "Profile") {
+      const stored = getStoredProfile();
+      saveStoredProfile({
+        name: profile.Name,
+        email: profile.Email,
+        phone: profile.Phone,
+        linkedin: profile.LinkedIn,
+        roles: stored?.roles ?? prefs.Roles,
+        locations: stored?.locations ?? prefs.Locations,
+        salaryFloor: stored?.salaryFloor ?? prefs["Salary floor"],
+      });
+    }
+    if (section === "Preferences") saveStoredPrefs(prefs);
+    if (section === "Auto-apply rules") saveStoredRules(rules);
     showToast(`${section} saved successfully`, "success");
   };
 
@@ -159,13 +190,13 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
           </div>
         </SettingsSection>
 
-        <SettingsSection icon="brain" title="Calibration & Model" sub={USER.calibration + "/" + USER.calibrationMax}>
+        <SettingsSection icon="brain" title="Calibration & Model" sub={calibration + "/" + calibrationMax}>
           <div className="arch-block">
             <div className="ab-name">Currently: <span>{USER.archetypeName}</span></div>
             <div className="ab-desc">Aviram is scoring you against the average mid-level backend engineer while it learns your specific patterns. At 25 signals, it switches to a model trained on <i>you</i> — your wins, your resume variants, your timing — and the IPS numbers get sharper.</div>
             <div className="calib" style={{ maxWidth: 420 }}>
-              <div className="arch"><span className="tag">[{USER.archetype}]</span><span className="frac">{USER.calibration} of {USER.calibrationMax} signals</span></div>
-              <div className="bar"><i style={{ width: (USER.calibration / USER.calibrationMax * 100) + "%" }} /></div>
+              <div className="arch"><span className="tag">[{USER.archetype}]</span><span className="frac">{calibration} of {calibrationMax} signals</span></div>
+              <div className="bar"><i style={{ width: (calibration / calibrationMax * 100) + "%" }} /></div>
             </div>
           </div>
           <div className="srow">

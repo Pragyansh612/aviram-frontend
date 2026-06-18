@@ -1,8 +1,10 @@
 "use client";
+import { useState, useEffect } from "react";
 import { OUTREACH } from "@/components/dashboard/data";
 import { PageHead, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 import { showToast } from "@/components/dashboard/Toast";
+import { consumeHighlightOutreachDraft } from "@/components/dashboard/session";
 import type { Campaign } from "@/components/dashboard/CampaignPanel";
 
 const arrIcon: React.CSSProperties = { width: 14, height: 14, display: "inline-block" };
@@ -12,6 +14,20 @@ export default function Outreach({ openCampaign, selectedId }: {
   openCampaign: (c: Campaign) => void;
   selectedId?: string | null;
 }) {
+  const [highlightDraft, setHighlightDraft] = useState<string | null>(null);
+
+  useEffect(() => {
+    const id = consumeHighlightOutreachDraft();
+    if (id) {
+      setHighlightDraft(id);
+      setTimeout(() => {
+        document.getElementById(`draft-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
+      const t = setTimeout(() => setHighlightDraft(null), 4000);
+      return () => clearTimeout(t);
+    }
+  }, []);
+
   return (
     <div className="page">
       <PageHead
@@ -33,7 +49,11 @@ export default function Outreach({ openCampaign, selectedId }: {
         <span style={{ color: "var(--clay)", fontWeight: 600 }}>{OUTREACH.drafts.length}</span>
       </div>
       {OUTREACH.drafts.map((d) => (
-        <div className="draft-card" key={d.id}>
+        <div
+          className={"draft-card" + (highlightDraft === d.id ? " sel" : "")}
+          key={d.id}
+          id={`draft-${d.id}`}
+        >
           <div className="dc-head">
             <span className="ava" style={{ width: 38, height: 38, borderRadius: "50%", background: "var(--accent)", color: "var(--accent-fg)", display: "grid", placeItems: "center", fontFamily: "var(--mono)", fontSize: 13, fontWeight: 600, flexShrink: 0 }}>{d.initials}</span>
             <div className="who"><div className="nm">{d.contact}</div><div className="rl">{d.rel}</div></div>
@@ -41,17 +61,16 @@ export default function Outreach({ openCampaign, selectedId }: {
           </div>
           <div className="body">"{d.body}"</div>
           <div className="dc-act">
-            {/* "Send intro" is the primary action the user must take — show prominently but fire toast */}
             <button
               type="button"
-              className="btn btn-primary btn-sm"
+              className="btn btn-ghost btn-sm"
               onClick={() => showToast("Send will be live once backend is connected — for now, copy the draft and send manually.", "warn")}
             >
               Send intro <span className="arr" style={arrIcon}><Icon name="send" /></span>
             </button>
             <button
               type="button"
-              className="btn btn-ghost btn-sm"
+              className="btn btn-quiet btn-sm"
               onClick={() => showToast(STUB_MSG)}
             >
               Edit

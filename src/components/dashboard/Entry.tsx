@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Icon } from "./icons";
 import { CountUp, useStagger } from "./shared";
 import { USER, BRIEF } from "./data";
-import { getDisplayName, getActiveForDuration, requestOpenPrepBrief } from "./session";
+import { getDisplayName, getActiveForDuration, requestOpenPrepBrief, requestHighlightOutreachDraft } from "./session";
 
 const arrIcon: React.CSSProperties = { width: 14, height: 14, display: "inline-block" };
 
@@ -112,7 +112,7 @@ function BriefLetter({ onEnter, goTo, firstName }: { onEnter: () => void; goTo: 
             <div className="ba-title">Stripe · Backend Engineer</div>
             <div className="ba-meta">2nd-degree via Arjun Mehta</div>
           </div>
-          <button className="btn btn-ghost btn-sm" onClick={() => goTo("outreach")}>
+          <button className="btn btn-ghost btn-sm" onClick={() => { requestHighlightOutreachDraft("d1"); goTo("outreach"); }}>
             Review Draft <span className="arr" style={arrIcon}><Icon name="arrow" /></span>
           </button>
         </BlLine>
@@ -216,7 +216,7 @@ function BriefTerminal({ onEnter, goTo, firstName }: { onEnter: () => void; goTo
                 <div className="tt">Referral draft ready · Stripe Backend Engineer</div>
                 <div className="tm">2nd-degree via arjun_mehta · awaiting your send</div>
               </div>
-              <button className="btn btn-ghost btn-sm" onClick={() => goTo("outreach")}>Review</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => { requestHighlightOutreachDraft("d1"); goTo("outreach"); }}>Review</button>
             </div>
           </div>
           <div className="bt-foot">

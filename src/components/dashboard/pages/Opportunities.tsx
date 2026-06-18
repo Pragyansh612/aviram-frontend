@@ -3,7 +3,8 @@ import { useState, useEffect, useRef } from "react";
 import { OPPS, MISSIONS, APPS } from "@/components/dashboard/data";
 import { IPSChip, Urgent, PageHead, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
-import { addSkippedOpp, removeSkippedOpp } from "@/components/dashboard/session";
+import { addSkippedOpp, removeSkippedOpp, addSessionApps, addSessionTimelineEvents, incrementCalibration } from "@/components/dashboard/session";
+import { showToast } from "@/components/dashboard/Toast";
 import type { Opp } from "@/components/dashboard/DetailPanel";
 
 const OPP_FILTERS = ["All", "Remote", "Referral available", "⚡ Urgent", "IPS ≥ 80", "Series A–B"];
@@ -236,13 +237,46 @@ export default function Opportunities({ openOpp, selectedId }: { openOpp: (o: Op
 
   // Top 10 non-skipped, non-already-applied opps by IPS for bulk apply
   const bulkCandidates = [...OPPS]
-    .filter((o) => !skipped.has(o.id) && !APPLIED_MAP.has(o.id))
+    .filter((o) => !skipped.has(o.id) && !APPLIED_MAP.has(o.id) && !sessionApplied.has(o.id))
     .sort((a, b) => b.ips - a.ips)
     .slice(0, 10);
 
   const handleBulkConfirm = () => {
-    setSessionApplied((prev) => new Set([...prev, ...bulkCandidates.map(o => o.id)]));
+    const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const apps = bulkCandidates.map((o, i) => ({
+      id: `bulk-${o.id}-${Date.now()}-${i}`,
+      company: o.company,
+      role: o.role,
+      platform: o.platform,
+      status: "applied",
+      statusLabel: "Applied",
+      date: "Just now",
+      ips: o.ips,
+      variant: pickVariant(o.ips),
+      coverLetter: `Tailored for ${o.company} — highlights backend scale and ${o.stack.slice(0, 2).join(" / ")} experience.`,
+      events: [
+        { time: now, text: `Resume tailored · Variant ${pickVariant(o.ips)}` },
+        { time: now, text: `Application submitted · ${o.platform}` },
+      ],
+      oppId: o.id,
+    }));
+    const events = bulkCandidates.map((o) => ({
+      time: now,
+      type: "applied",
+      title: "Application Submitted",
+      company: o.company,
+      role: o.role,
+      extra: `Resume Variant ${pickVariant(o.ips)} · ATS: ${o.platform}`,
+      action: "View",
+      ips: o.ips,
+      appId: apps.find((a) => a.oppId === o.id)?.id,
+    }));
+    addSessionApps(apps);
+    addSessionTimelineEvents(events);
+    incrementCalibration(bulkCandidates.length);
+    setSessionApplied((prev) => new Set([...prev, ...bulkCandidates.map((o) => o.id)]));
     setBulkOpen(false);
+    showToast(`Queued ${bulkCandidates.length} applications — check Applications and Timeline.`, "success");
   };
 
   return (
