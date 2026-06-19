@@ -65,7 +65,7 @@ export default function CommandCenter({ goTo, openOpp }: {
   goTo: (p: PageId) => void;
   openOpp: (o: typeof OPPS[0]) => void;
 }) {
-  const { opportunities } = useDashboard();
+  const { opportunities, briefStats, apiLive } = useDashboard();
   const [range, setRange] = useState<RangeKey>("24h");
   const [dropOpen, setDropOpen] = useState(false);
   const [updatedAgo, setUpdatedAgo] = useState("just now");
@@ -77,8 +77,16 @@ export default function CommandCenter({ goTo, openOpp }: {
   }, []);
 
   const feed = [...opportunities].filter((o) => !o.skipped).sort((a, b) => b.ips - a.ips).slice(0, 15);
-  const actions = ACTION_ITEMS.slice(0, 7);
-  const activity = ACTIVITY_RANGES[range];
+  const actions = apiLive ? [] : ACTION_ITEMS.slice(0, 7);
+  const activity = apiLive
+    ? {
+        discovered: briefStats.discovered,
+        shortlisted: briefStats.shortlisted,
+        submitted: briefStats.submitted,
+        referral: briefStats.referral,
+        interview: briefStats.interview,
+      }
+    : ACTIVITY_RANGES[range];
   const segs = [
     { n: activity.discovered, k: "found" },
     { n: activity.shortlisted, k: "scored" },

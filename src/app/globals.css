@@ -1468,3 +1468,53 @@ section { position: relative; }
   *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
   .reveal, .jobcard, .minicard, .log-line, .signal, .trow, .amb-line, .verdict-pill { opacity: 1 !important; transform: none !important; }
 }
+
+/* ============================================================
+   TAG AUTOCOMPLETE (roles, locations, industries)
+   ============================================================ */
+.tag-ac-wrap { position: relative; width: 100%; }
+.tag-ac {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  min-height: 42px; padding: 7px 10px;
+  border: 1px solid var(--line); border-radius: 9px; background: var(--cream);
+  cursor: text; transition: border-color .18s var(--ease), box-shadow .18s var(--ease);
+}
+.tag-ac:focus-within { border-color: var(--accent-edge); box-shadow: 0 0 0 3px var(--accent-tint); }
+.tag-ac--settings {
+  min-height: 36px; padding: 5px 8px; border-radius: 7px; background: transparent;
+}
+.tag-ac--settings:focus-within { box-shadow: none; background: color-mix(in srgb, var(--accent) 3%, transparent); }
+.tag-ac-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12.5px; font-weight: 500; color: var(--ink-2);
+  background: var(--paper); border: 1px solid var(--line); border-radius: 6px;
+  padding: 3px 6px 3px 9px; max-width: 100%;
+}
+.tag-ac-chip-x {
+  border: none; background: transparent; color: var(--ink-4); cursor: pointer;
+  font-size: 15px; line-height: 1; padding: 0 2px; border-radius: 4px;
+}
+.tag-ac-chip-x:hover { color: var(--ink); background: var(--cream-deep); }
+.tag-ac-input {
+  border: none; outline: none; flex: 1; min-width: 100px;
+  font-family: var(--sans); font-size: 15px; color: var(--ink); background: transparent;
+  padding: 4px 2px;
+}
+.tag-ac--settings .tag-ac-input { font-size: 13.5px; min-width: 80px; }
+.tag-ac-hint { font-size: 11px; color: var(--ink-4); margin: 6px 0 0; line-height: 1.4; }
+.tag-ac-drop {
+  position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 200;
+  max-height: 280px; overflow-y: auto;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.12); padding: 6px 0; margin: 0; list-style: none;
+}
+.tag-ac-group { font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-4); padding: 8px 14px 4px; }
+.tag-ac-option {
+  display: block; width: 100%; text-align: left; border: none; background: transparent;
+  font-family: var(--sans); font-size: 13.5px; color: var(--ink-2); padding: 8px 14px; cursor: pointer;
+}
+.tag-ac-option:hover, .tag-ac-option.active { background: var(--accent-tint); color: var(--ink); }
+.tag-ac-option.custom { color: var(--accent); font-weight: 500; }
+.srow-tag { align-items: flex-start; }
+.srow-tag .sl { padding-top: 6px; }
+.sv-tag-wrap { flex: 1; min-width: 0; }

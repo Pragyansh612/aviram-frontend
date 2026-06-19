@@ -12,12 +12,24 @@ import {
   saveStoredRules,
   type StoredProfile,
 } from "@/components/dashboard/session";
+import TagAutocomplete from "@/components/ui/TagAutocomplete";
+import {
+  JOB_LOCATIONS,
+  JOB_ROLE_GROUPS,
+  JOB_ROLES,
+  LOCATION_GROUPS,
+  parseTags,
+  POPULAR_JOB_ROLES,
+  POPULAR_LOCATIONS,
+  TECH_COMPANIES,
+} from "@/lib/job-catalog";
 import {
   apiUpdateProfile,
   apiUpsertPreferences,
   apiUpdateAgentSettings,
   apiUploadResume,
 } from "@/lib/api";
+import { getUserEmail } from "@/lib/api/tokens";
 
 const STEPS = ["profile", "resume", "preferences", "rules", "archetype", "calibration"] as const;
 type Step = (typeof STEPS)[number];
@@ -57,7 +69,12 @@ export default function OnboardingFlow() {
 
   useEffect(() => {
     const stored = getStoredProfile();
-    if (stored) setProfile({ ...emptyProfile, ...stored });
+    const email = getUserEmail() ?? "";
+    if (stored) {
+      setProfile({ ...emptyProfile, ...stored, email: stored.email || email });
+    } else if (email) {
+      setProfile((p) => ({ ...p, email }));
+    }
     const storedRules = getStoredRules();
     if (storedRules) {
       setRules({
@@ -208,11 +225,29 @@ export default function OnboardingFlow() {
             <div className="auth-form">
               <label className="auth-field">
                 <span className="auth-label">Target roles</span>
-                <input className="auth-input" required value={profile.roles} onChange={(e) => setProfile({ ...profile, roles: e.target.value })} />
+                <TagAutocomplete
+                  value={profile.roles}
+                  onChange={(roles) => setProfile({ ...profile, roles })}
+                  options={JOB_ROLES}
+                  browse={{ groups: JOB_ROLE_GROUPS, popular: POPULAR_JOB_ROLES }}
+                  separator=", "
+                  placeholder="e.g. Backend Engineer, Platform Engineer"
+                  required
+                  hint={`${JOB_ROLES.length}+ roles — type to search or pick from the list`}
+                />
               </label>
               <label className="auth-field">
                 <span className="auth-label">Locations</span>
-                <input className="auth-input" required value={profile.locations} onChange={(e) => setProfile({ ...profile, locations: e.target.value })} />
+                <TagAutocomplete
+                  value={profile.locations}
+                  onChange={(locations) => setProfile({ ...profile, locations })}
+                  options={JOB_LOCATIONS}
+                  browse={{ groups: LOCATION_GROUPS, popular: POPULAR_LOCATIONS }}
+                  separator=" · "
+                  placeholder="e.g. Remote · Bengaluru"
+                  required
+                  hint="Remote, hybrid, and cities worldwide"
+                />
               </label>
               <label className="auth-field">
                 <span className="auth-label">Salary floor</span>
@@ -237,7 +272,15 @@ export default function OnboardingFlow() {
               </label>
               <label className="auth-field">
                 <span className="auth-label">Blocked companies</span>
-                <input className="auth-input" placeholder="Comma-separated — optional" value={rules.blockedCompanies} onChange={(e) => setRules({ ...rules, blockedCompanies: e.target.value })} />
+                <TagAutocomplete
+                  value={rules.blockedCompanies}
+                  onChange={(blockedCompanies) => setRules({ ...rules, blockedCompanies })}
+                  options={TECH_COMPANIES}
+                  separator=", "
+                  placeholder="Optional — type a company name"
+                  allowCustom
+                  hint="Companies Aviram will never apply to on your behalf"
+                />
               </label>
               <label className="auth-field">
                 <span className="auth-label">Quality score minimum</span>
@@ -286,6 +329,11 @@ export default function OnboardingFlow() {
               !hydrated
               || (step === "profile" && (!profile.name.trim() || !profile.phone.trim() || !profile.linkedin.trim()))
               || (step === "resume" && !resumeName)
+              || (step === "preferences" && (
+                !parseTags(profile.roles).length
+                || !parseTags(profile.locations).length
+                || !profile.salaryFloor.trim()
+              ))
             }
           >
             {step === "calibration" ? "Enter Aviram" : "Continue"}

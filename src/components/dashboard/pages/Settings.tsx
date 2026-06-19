@@ -27,6 +27,18 @@ import { PageHead } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 import { showToast } from "@/components/dashboard/Toast";
 import { useDashboard } from "@/contexts/DashboardContext";
+import TagAutocomplete from "@/components/ui/TagAutocomplete";
+import {
+  INDUSTRIES,
+  INDUSTRY_GROUPS,
+  JOB_LOCATIONS,
+  JOB_ROLE_GROUPS,
+  JOB_ROLES,
+  LOCATION_GROUPS,
+  POPULAR_JOB_ROLES,
+  POPULAR_LOCATIONS,
+  TECH_COMPANIES,
+} from "@/lib/job-catalog";
 
 const STUB_MSG = "OAuth connection will be available when connected to backend.";
 
@@ -57,6 +69,70 @@ function EditableRow({ label, value, onChange }: { label: string; value: string;
       />
     </div>
   );
+}
+
+type TagFieldConfig = {
+  options: readonly string[];
+  separator: string;
+  placeholder: string;
+  browse?: { groups: { label: string; items: string[] }[]; popular: string[] };
+  hint?: string;
+};
+
+const TAG_PREF_FIELDS: Partial<Record<string, TagFieldConfig>> = {
+  Roles: {
+    options: JOB_ROLES,
+    separator: ", ",
+    placeholder: "Add target roles",
+    browse: { groups: JOB_ROLE_GROUPS, popular: POPULAR_JOB_ROLES },
+    hint: "Type to search roles",
+  },
+  Locations: {
+    options: JOB_LOCATIONS,
+    separator: " · ",
+    placeholder: "Add locations",
+    browse: { groups: LOCATION_GROUPS, popular: POPULAR_LOCATIONS },
+    hint: "Remote, hybrid, or city",
+  },
+  Industries: {
+    options: INDUSTRIES,
+    separator: ", ",
+    placeholder: "Add industries",
+    browse: { groups: INDUSTRY_GROUPS, popular: ["Fintech", "SaaS", "DevTools", "AI / Machine Learning"] },
+    hint: "Sectors you want to target",
+  },
+};
+
+function PrefRow({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const cfg = TAG_PREF_FIELDS[label];
+  if (cfg) {
+    return (
+      <div className="srow srow-tag">
+        <div className="sl"><div className="k">{label}</div></div>
+        <div className="sv-tag-wrap">
+          <TagAutocomplete
+            value={value}
+            onChange={onChange}
+            options={cfg.options}
+            browse={cfg.browse}
+            separator={cfg.separator}
+            placeholder={cfg.placeholder}
+            className="tag-ac tag-ac--settings"
+            hint={cfg.hint}
+          />
+        </div>
+      </div>
+    );
+  }
+  return <EditableRow label={label} value={value} onChange={onChange} />;
 }
 
 const DEFAULT_CONNS: Record<string, boolean> = {
@@ -103,7 +179,7 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
     return {
       "IPS threshold": stored?.["IPS threshold"] ?? "70",
       "Daily application limit": stored?.["Daily application limit"] ?? "20",
-      "Blocked companies": stored?.["Blocked companies"] ?? "3 added",
+      "Blocked companies": stored?.["Blocked companies"] ?? "",
       "Timing window": stored?.["Timing window"] ?? "Thu 8–11 AM",
       "Quality score minimum": stored?.["Quality score minimum"] ?? "High",
       "Auto-send referrals": stored?.["Auto-send referrals"] === "true",
@@ -272,7 +348,7 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
 
         <SettingsSection icon="target" title="Job Preferences" sub="roles · locations · missions">
           {(Object.keys(prefs) as (keyof typeof prefs)[]).map((k) => (
-            <EditableRow
+            <PrefRow
               key={k}
               label={k}
               value={prefs[k]}
@@ -297,7 +373,7 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
         </SettingsSection>
 
         <SettingsSection icon="sliders" title="Auto-Apply Rules" sub="applied every run">
-          {(["IPS threshold", "Daily application limit", "Blocked companies", "Timing window", "Quality score minimum"] as const).map((k) => (
+          {(["IPS threshold", "Daily application limit", "Timing window", "Quality score minimum"] as const).map((k) => (
             <EditableRow
               key={k}
               label={k}
@@ -305,6 +381,22 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
               onChange={(v) => setRules((r) => ({ ...r, [k]: v }))}
             />
           ))}
+          <div className="srow srow-tag">
+            <div className="sl">
+              <div className="k">Blocked companies</div>
+              <div className="d">Never apply to these employers</div>
+            </div>
+            <div className="sv-tag-wrap">
+              <TagAutocomplete
+                value={rules["Blocked companies"]}
+                onChange={(v) => setRules((r) => ({ ...r, "Blocked companies": v }))}
+                options={TECH_COMPANIES}
+                separator=", "
+                placeholder="Add company"
+                className="tag-ac tag-ac--settings"
+              />
+            </div>
+          </div>
           <div className="srow">
             <div className="sl"><div className="k">Auto-send referrals</div><div className="d">Draft only — you press send. Always.</div></div>
             <div

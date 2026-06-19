@@ -91,6 +91,17 @@ export async function apiFetch<T>(
     payload = text;
   }
 
+  if (res.status === 401 && !skipAuth) {
+    clearTokens();
+    if (typeof window !== "undefined") {
+      const p = window.location.pathname;
+      if (!p.startsWith("/login") && !p.startsWith("/signup")) {
+        window.location.href = "/login";
+      }
+    }
+    throw new ApiError("Session expired — please sign in again.", 401);
+  }
+
   if (!res.ok) {
     const detail = typeof payload === "object" && payload && "detail" in payload
       ? (payload as { detail: unknown }).detail

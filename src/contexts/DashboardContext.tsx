@@ -19,6 +19,7 @@ import {
 } from "@/components/dashboard/data";
 import {
   checkBackendHealth,
+  getAccessToken,
   apiGetApplyQueue,
   apiGetAgentStatus,
   apiGetTimeline,
@@ -37,6 +38,7 @@ import {
   mapApplicationLabel,
   mapCalibration,
 } from "@/lib/api";
+import { touchLastSync } from "@/components/dashboard/session";
 import type { TimelineEntry } from "@/lib/api";
 
 type TimelineEvent = Omit<ReturnType<typeof mapTimelineEntry>, "appId"> & {
@@ -105,9 +107,11 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(async () => {
     setLoading(true);
     const healthy = await checkBackendHealth();
-    setApiLive(healthy);
+    const authed = !!getAccessToken();
+    const live = healthy && authed;
+    setApiLive(live);
 
-    if (!healthy) {
+    if (!live) {
       setOpportunities(OPPS);
       setTimeline(TIMELINE as TimelineGroup[]);
       setApplications(APPS);
@@ -178,6 +182,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       if (agent) {
         setRunningState(agent.is_enabled && !agent.is_paused);
       }
+      touchLastSync();
     } catch {
       setApiLive(false);
       setOpportunities(OPPS);
