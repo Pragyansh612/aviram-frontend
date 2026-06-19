@@ -8,6 +8,14 @@ import { apiRegister, apiLogin, ApiError } from "@/lib/api";
 
 const PASSWORD_HINT = "At least 8 characters, one uppercase letter, and one digit.";
 
+function fullNameFromEmail(email: string): string {
+  const raw = email.split("@")[0]?.replace(/[._+-]/g, " ").trim() || "";
+  if (raw.length >= 2) {
+    return raw.charAt(0).toUpperCase() + raw.slice(1);
+  }
+  return "New User";
+}
+
 export default function SignupPageClient() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -24,13 +32,13 @@ export default function SignupPageClient() {
     }
     setSubmitting(true);
     try {
-      const nameFromEmail = email.split("@")[0]?.replace(/[._]/g, " ") || "User";
-      await apiRegister(email, password, nameFromEmail);
+      const fullName = fullNameFromEmail(email);
+      await apiRegister(email, password, fullName);
       await apiLogin(email, password);
       markAuthed();
       const existing = getStoredProfile();
       saveStoredProfile({
-        name: "",
+        name: fullName,
         phone: "",
         linkedin: "",
         roles: "",
