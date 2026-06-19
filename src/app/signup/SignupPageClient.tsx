@@ -3,7 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AuthShell from "@/components/auth/AuthShell";
-import { markAuthed, saveStoredProfile, getStoredProfile } from "@/components/dashboard/session";
+import { markAuthed, saveStoredProfile, beginSignupSession } from "@/components/dashboard/session";
 import { apiRegister, apiLogin, ApiError } from "@/lib/api";
 
 const PASSWORD_HINT = "At least 8 characters, one uppercase letter, and one digit.";
@@ -36,16 +36,15 @@ export default function SignupPageClient() {
       await apiRegister(email, password, fullName);
       await apiLogin(email, password);
       markAuthed();
-      const existing = getStoredProfile();
+      beginSignupSession(email);
       saveStoredProfile({
         name: fullName,
+        email,
         phone: "",
         linkedin: "",
         roles: "",
         locations: "",
         salaryFloor: "",
-        ...(existing ?? {}),
-        email,
       });
       router.push("/onboarding");
     } catch (err) {

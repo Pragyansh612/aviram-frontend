@@ -2,6 +2,7 @@ export const BRIEF_SEEN_KEY = "aviram-brief-seen";
 export const FIRST_BRIEF_KEY = "aviram-first-brief";
 export const AUTH_KEY = "aviram-authed";
 export const ONBOARDING_KEY = "aviram-onboarding-complete";
+export const ONBOARDING_USER_KEY = "aviram-onboarding-user";
 export const PROFILE_KEY = "aviram-profile";
 
 export type StoredProfile = {
@@ -52,6 +53,19 @@ export function clearAuth(): void {
     localStorage.removeItem("aviram-user-id");
     localStorage.removeItem("aviram-user-email");
     localStorage.removeItem(AUTH_KEY);
+    localStorage.removeItem(ONBOARDING_KEY);
+    localStorage.removeItem(ONBOARDING_USER_KEY);
+  } catch {}
+}
+
+/** New account signup — reset onboarding so flow always runs for this user. */
+export function beginSignupSession(email: string): void {
+  try {
+    localStorage.removeItem(ONBOARDING_KEY);
+    localStorage.removeItem(ONBOARDING_USER_KEY);
+    localStorage.setItem("aviram-user-email", email);
+    clearBriefSeen();
+    clearFirstTimeBrief();
   } catch {}
 }
 
@@ -60,11 +74,20 @@ export function markAuthed(): void {
 }
 
 export function isOnboardingComplete(): boolean {
-  try { return localStorage.getItem(ONBOARDING_KEY) === "1"; } catch { return false; }
+  try {
+    if (localStorage.getItem(ONBOARDING_KEY) !== "1") return false;
+    const email = localStorage.getItem("aviram-user-email");
+    const forUser = localStorage.getItem(ONBOARDING_USER_KEY);
+    return !!email && forUser === email;
+  } catch { return false; }
 }
 
 export function markOnboardingComplete(): void {
-  try { localStorage.setItem(ONBOARDING_KEY, "1"); } catch {}
+  try {
+    localStorage.setItem(ONBOARDING_KEY, "1");
+    const email = localStorage.getItem("aviram-user-email");
+    if (email) localStorage.setItem(ONBOARDING_USER_KEY, email);
+  } catch {}
 }
 
 export function getStoredProfile(): StoredProfile | null {

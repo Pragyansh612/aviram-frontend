@@ -158,9 +158,11 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
         const threshold = agent.ips_threshold as number | undefined;
         setRules((r) => ({
           ...r,
-          "IPS threshold": threshold != null ? String(threshold > 1 ? threshold : Math.round(threshold * 100)) : r["IPS threshold"],
+          "IPS threshold": threshold != null
+            ? String(threshold > 1 ? Math.round(threshold) : Math.round(threshold * 100))
+            : r["IPS threshold"],
           "Daily application limit": String(agent.daily_cap ?? r["Daily application limit"]),
-          "Quality score minimum": (agent.quality_min as number) >= 0.8 ? "High" : "Medium",
+          "Quality score minimum": (agent.quality_min as number) >= 80 ? "High" : "Medium",
         }));
       }
     });
@@ -213,9 +215,9 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
       });
       try {
         await apiUpdateAgentSettings({
-          ips_threshold: parseFloat(rules["IPS threshold"]) / 100,
+          ips_threshold: parseFloat(rules["IPS threshold"]),
           daily_cap: parseInt(rules["Daily application limit"], 10),
-          quality_min: rules["Quality score minimum"].toLowerCase() === "high" ? 0.8 : 0.6,
+          quality_min: rules["Quality score minimum"].toLowerCase() === "high" ? 80 : 60,
         });
       } catch { /* local */ }
     }

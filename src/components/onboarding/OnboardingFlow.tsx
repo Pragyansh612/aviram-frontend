@@ -105,9 +105,9 @@ export default function OnboardingFlow() {
           remote_preference: profile.locations.toLowerCase().includes("remote") ? "remote" : "any",
         });
         await apiUpdateAgentSettings({
-          ips_threshold: parseFloat(rules.ipsThreshold) / 100,
+          ips_threshold: parseFloat(rules.ipsThreshold),
           daily_cap: parseInt(rules.dailyLimit, 10),
-          quality_min: rules.qualityMinimum.toLowerCase() === "high" ? 0.8 : 0.6,
+          quality_min: rules.qualityMinimum.toLowerCase() === "high" ? 80 : 60,
           is_enabled: true,
         });
       } catch {
