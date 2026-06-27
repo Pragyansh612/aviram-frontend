@@ -68,7 +68,7 @@ function groupTimelineByDay(
   events: TimelineEvent[],
 ): TimelineGroup[] {
   if (events.length === 0) return [];
-  return [{ day: "Recent", events }];
+  return [{ day: "Today", events }];
 }
 
 function mapApiApplication(
@@ -188,6 +188,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       setOpportunities(OPPS);
       setTimeline(TIMELINE as TimelineGroup[]);
       setApplications(APPS);
+      setBriefStats(BRIEF);
+      setUserMeta(USER);
     } finally {
       setLoading(false);
     }
@@ -195,6 +197,11 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     refresh();
+    // Poll every 30 seconds so Command Center and Timeline stay live
+    const poll = setInterval(() => {
+      refresh();
+    }, 30_000);
+    return () => clearInterval(poll);
   }, [refresh]);
 
   const applyToJob = useCallback(async (jobId: string) => {

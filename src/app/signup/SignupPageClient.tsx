@@ -1,9 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AuthShell from "@/components/auth/AuthShell";
-import { markAuthed, saveStoredProfile, beginSignupSession } from "@/components/dashboard/session";
+import { isAuthed, isOnboardingComplete, markAuthed, saveStoredProfile, beginSignupSession } from "@/components/dashboard/session";
 import { apiRegister, apiLogin, ApiError } from "@/lib/api";
 
 const PASSWORD_HINT = "At least 8 characters, one uppercase letter, and one digit.";
@@ -22,6 +22,12 @@ export default function SignupPageClient() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isAuthed()) {
+      router.replace(isOnboardingComplete() ? "/dashboard" : "/onboarding");
+    }
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

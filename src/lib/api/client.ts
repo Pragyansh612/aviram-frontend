@@ -95,7 +95,7 @@ export async function apiFetch<T>(
     clearTokens();
     if (typeof window !== "undefined") {
       const p = window.location.pathname;
-      if (!p.startsWith("/login") && !p.startsWith("/signup")) {
+      if (!p.startsWith("/login") && !p.startsWith("/signup") && !p.startsWith("/onboarding")) {
         window.location.href = "/login";
       }
     }

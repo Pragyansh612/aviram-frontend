@@ -76,15 +76,15 @@ export default function Applications({ openOpp, expandAppId }: { openOpp?: (o: O
   const [expanded, setExpanded] = useState<string | null>(expandAppId ?? null);
   const [outcomeFor, setOutcomeFor] = useState<string | null>(null);
   const [outcomeSaved, setOutcomeSaved] = useState<Record<string, string>>({});
-  const [apps, setApps] = useState<AppRow[]>(() => mergeApps(sourceApps));
+  const [apps, setApps] = useState<AppRow[]>(() => (apiLive ? sourceApps : mergeApps(sourceApps)));
 
   useEffect(() => {
     if (expandAppId) {
       setExpanded(expandAppId);
       setTab("all");
     }
-    setApps(mergeApps(sourceApps));
-  }, [expandAppId, sourceApps]);
+    setApps(apiLive ? sourceApps : mergeApps(sourceApps));
+  }, [expandAppId, sourceApps, apiLive]);
 
   const match = (a: AppRow) => {
     switch (tab) {

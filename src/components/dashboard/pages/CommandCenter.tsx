@@ -61,11 +61,52 @@ const ACTION_ITEMS: {
   },
 ];
 
+function deriveLiveActions(
+  apps: { status: string; company: string; role: string; id: string }[],
+): typeof ACTION_ITEMS {
+  const out: typeof ACTION_ITEMS = [];
+  for (const app of apps) {
+    if (app.status === "interview") {
+      out.push({
+        type: "interview",
+        kicker: "Interview upcoming",
+        title: `${app.company} · ${app.role}`,
+        meta: "Prep brief ready",
+        btn: "Open Brief",
+        to: "prep",
+        primary: true,
+      });
+    } else if (app.status === "response") {
+      out.push({
+        type: "manual",
+        kicker: "Recruiter replied",
+        title: `${app.company} · ${app.role}`,
+        meta: "Response received — your move",
+        btn: "Respond",
+        to: "applications",
+        primary: false,
+      });
+    } else if (app.status === "offer") {
+      out.push({
+        type: "insight",
+        kicker: "Offer received",
+        title: `${app.company} · ${app.role}`,
+        meta: "Review terms and next steps",
+        btn: "View",
+        to: "applications",
+        primary: true,
+      });
+    }
+    if (out.length >= 7) break;
+  }
+  return out;
+}
+
 export default function CommandCenter({ goTo, openOpp }: {
   goTo: (p: PageId) => void;
   openOpp: (o: typeof OPPS[0]) => void;
 }) {
-  const { opportunities, briefStats, apiLive } = useDashboard();
+  const { opportunities, briefStats, apiLive, applications } = useDashboard();
   const [range, setRange] = useState<RangeKey>("24h");
   const [dropOpen, setDropOpen] = useState(false);
   const [updatedAgo, setUpdatedAgo] = useState("just now");
@@ -77,7 +118,7 @@ export default function CommandCenter({ goTo, openOpp }: {
   }, []);
 
   const feed = [...opportunities].filter((o) => !o.skipped).sort((a, b) => b.ips - a.ips).slice(0, 15);
-  const actions = apiLive ? [] : ACTION_ITEMS.slice(0, 7);
+  const actions = apiLive ? deriveLiveActions(applications) : ACTION_ITEMS.slice(0, 7);
   const activity = apiLive
     ? {
         discovered: briefStats.discovered,
@@ -102,7 +143,10 @@ export default function CommandCenter({ goTo, openOpp }: {
   const handleAction = (a: typeof ACTION_ITEMS[0]) => {
     if (a.to === "prep" && a.btn === "Open Brief") requestOpenPrepBrief();
     if (a.to === "outreach" && a.btn === "Review Draft") requestHighlightOutreachDraft("d1");
-    if (a.to === "applications" && a.btn === "Respond") requestOpenApplication("a3");
+    if (a.to === "applications" && (a.btn === "Respond" || a.btn === "View")) {
+      const match = applications.find((app) => `${app.company} · ${app.role}` === a.title);
+      if (match) requestOpenApplication(match.id);
+    }
     goTo(a.to);
   };
 

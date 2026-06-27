@@ -125,6 +125,7 @@ export default function OnboardingFlow() {
           ips_threshold: parseFloat(rules.ipsThreshold),
           daily_cap: parseInt(rules.dailyLimit, 10),
           quality_min: rules.qualityMinimum.toLowerCase() === "high" ? 80 : 60,
+          company_blocklist: parseTags(rules.blockedCompanies),
           is_enabled: true,
         });
       } catch {

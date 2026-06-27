@@ -5,6 +5,8 @@ export const ONBOARDING_KEY = "aviram-onboarding-complete";
 export const ONBOARDING_USER_KEY = "aviram-onboarding-user";
 export const PROFILE_KEY = "aviram-profile";
 
+import { clearSessionCookies, setOnboardedCookie, setSessionCookie, clearOnboardedCookie } from "@/lib/api/tokens";
+
 export type StoredProfile = {
   name: string;
   email: string;
@@ -55,6 +57,14 @@ export function clearAuth(): void {
     localStorage.removeItem(AUTH_KEY);
     localStorage.removeItem(ONBOARDING_KEY);
     localStorage.removeItem(ONBOARDING_USER_KEY);
+    localStorage.removeItem(PROFILE_KEY);
+    localStorage.removeItem("aviram-settings-prefs");
+    localStorage.removeItem("aviram-settings-rules");
+    localStorage.removeItem("aviram-calibration");
+    localStorage.removeItem("aviram-login-time");
+    localStorage.removeItem("aviram-last-sync");
+    localStorage.removeItem("aviram-brief-variant");
+    clearSessionCookies();
   } catch {}
 }
 
@@ -64,6 +74,8 @@ export function beginSignupSession(email: string): void {
     localStorage.removeItem(ONBOARDING_KEY);
     localStorage.removeItem(ONBOARDING_USER_KEY);
     localStorage.setItem("aviram-user-email", email);
+    clearOnboardedCookie();
+    setSessionCookie();
     clearBriefSeen();
     clearFirstTimeBrief();
   } catch {}
@@ -87,6 +99,7 @@ export function markOnboardingComplete(): void {
     localStorage.setItem(ONBOARDING_KEY, "1");
     const email = localStorage.getItem("aviram-user-email");
     if (email) localStorage.setItem(ONBOARDING_USER_KEY, email);
+    setOnboardedCookie();
   } catch {}
 }
 

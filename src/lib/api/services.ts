@@ -216,6 +216,42 @@ export async function apiGetCareerRoi(limit = 8): Promise<Record<string, unknown
   return apiFetch(`/career-roi/recommendations?limit=${limit}`);
 }
 
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+
+export async function apiGetDashboardActions(limit = 7): Promise<{
+  actions: Array<{
+    id: string;
+    type: string;
+    kicker: string;
+    title: string;
+    meta: string;
+    btn: string;
+    to: string;
+    primary: boolean;
+    reference_id?: string;
+  }>;
+  total: number;
+}> {
+  return apiFetch(`/dashboard/actions?limit=${limit}`);
+}
+
+export async function apiDismissAction(actionId: string): Promise<void> {
+  await apiFetch(`/dashboard/actions/${actionId}/dismiss`, { method: "POST" });
+}
+
+// ── Opportunity Memory ────────────────────────────────────────────────────────
+
+export async function apiRecordOpportunityInteraction(
+  job_id: string,
+  action: "viewed" | "skipped" | "queued" | "applied" | "blocked",
+  skip_reason?: string,
+): Promise<void> {
+  await apiFetch("/opportunity-memory/record", {
+    method: "POST",
+    body: JSON.stringify({ job_id, action, skip_reason }),
+  });
+}
+
 // ── Agent settings (auto-apply rules) ─────────────────────────────────────────
 
 export async function apiGetAgentSettings(): Promise<Record<string, unknown>> {

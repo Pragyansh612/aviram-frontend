@@ -35,6 +35,7 @@ import {
   JOB_ROLE_GROUPS,
   JOB_ROLES,
   LOCATION_GROUPS,
+  parseTags,
   POPULAR_JOB_ROLES,
   POPULAR_LOCATIONS,
   TECH_COMPANIES,
@@ -145,7 +146,7 @@ const DEFAULT_CONNS: Record<string, boolean> = {
 };
 
 export default function Settings({ running, toggleRunning }: { running: boolean; toggleRunning: () => void }) {
-  const { apiLive } = useDashboard();
+  const { apiLive, userMeta } = useDashboard();
   const [briefVariant, setBriefVariant] = useState<"letter" | "terminal">("letter");
   const [conns, setConns] = useState(DEFAULT_CONNS);
 
@@ -228,10 +229,14 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
           "Remote preference": prefsApi.remote_preference ?? p["Remote preference"],
           Industries: prefsApi.industries?.join(", ") ?? p.Industries,
           "Opportunity type": prefsApi.opportunity_type ?? p["Opportunity type"],
+          "Salary floor": prefsApi.min_salary
+            ? `₹${Math.round(prefsApi.min_salary / 100000)} LPA`
+            : p["Salary floor"],
         }));
       }
       if (agent) {
         const threshold = agent.ips_threshold as number | undefined;
+        const blocklist = agent.company_blocklist as string[] | undefined;
         setRules((r) => ({
           ...r,
           "IPS threshold": threshold != null
@@ -239,13 +244,16 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
             : r["IPS threshold"],
           "Daily application limit": String(agent.daily_cap ?? r["Daily application limit"]),
           "Quality score minimum": (agent.quality_min as number) >= 80 ? "High" : "Medium",
+          "Blocked companies": blocklist?.length ? blocklist.join(", ") : r["Blocked companies"],
         }));
       }
     });
   }, [apiLive]);
 
-  const calibration = getCalibrationCount() ?? USER.calibration;
-  const calibrationMax = USER.calibrationMax;
+  const calibration = apiLive ? userMeta.calibration : (getCalibrationCount() ?? USER.calibration);
+  const calibrationMax = apiLive ? userMeta.calibrationMax : USER.calibrationMax;
+  const archetypeName = apiLive ? userMeta.archetypeName : USER.archetypeName;
+  const archetype = apiLive ? userMeta.archetype : USER.archetype;
 
   const handleSave = async (section: string) => {
     if (section === "Profile") {
@@ -276,6 +284,10 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
           desired_roles: prefs.Roles.split(",").map((s) => s.trim()).filter(Boolean),
           preferred_locations: prefs.Locations.split(/[,·]/).map((s) => s.trim()).filter(Boolean),
           industries: prefs.Industries.split(",").map((s) => s.trim()).filter(Boolean),
+          min_salary: (() => {
+            const n = parseInt(prefs["Salary floor"].replace(/\D/g, ""), 10);
+            return n ? n * 100000 : undefined;
+          })(),
           remote_preference: prefs["Remote preference"].toLowerCase().includes("remote") ? "remote" : "any",
         });
       } catch { /* local */ }
@@ -294,6 +306,7 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
           ips_threshold: parseFloat(rules["IPS threshold"]),
           daily_cap: parseInt(rules["Daily application limit"], 10),
           quality_min: rules["Quality score minimum"].toLowerCase() === "high" ? 80 : 60,
+          company_blocklist: parseTags(rules["Blocked companies"]),
         });
       } catch { /* local */ }
     }
@@ -434,10 +447,10 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
 
         <SettingsSection icon="brain" title="Calibration & Model" sub={calibration + "/" + calibrationMax}>
           <div className="arch-block">
-            <div className="ab-name">Currently: <span>{USER.archetypeName}</span></div>
+            <div className="ab-name">Currently: <span>{archetypeName}</span></div>
             <div className="ab-desc">Aviram is scoring you against the average mid-level backend engineer while it learns your specific patterns. At 25 signals, it switches to a model trained on <i>you</i> — your wins, your resume variants, your timing — and the IPS numbers get sharper.</div>
             <div className="calib" style={{ maxWidth: 420 }}>
-              <div className="arch"><span className="tag">[{USER.archetype}]</span><span className="frac">{calibration} of {calibrationMax} signals</span></div>
+              <div className="arch"><span className="tag">[{archetype}]</span><span className="frac">{calibration} of {calibrationMax} signals</span></div>
               <div className="bar"><i style={{ width: (calibration / calibrationMax * 100) + "%" }} /></div>
             </div>
           </div>

@@ -1,9 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AuthShell from "@/components/auth/AuthShell";
-import { beginLoginSession, isOnboardingComplete, markAuthed } from "@/components/dashboard/session";
+import { beginLoginSession, isAuthed, isOnboardingComplete, markAuthed } from "@/components/dashboard/session";
 import { apiLogin, ApiError } from "@/lib/api";
 
 export default function LoginPageClient() {
@@ -12,6 +12,12 @@ export default function LoginPageClient() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isAuthed()) {
+      router.replace(isOnboardingComplete() ? "/dashboard" : "/onboarding");
+    }
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
