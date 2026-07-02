@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const LINES = [
   "syncing profile & preferences",
@@ -9,14 +9,19 @@ const LINES = [
 
 export default function WakeScreen({ onDone }: { onDone: () => void }) {
   const [shown, setShown] = useState(0);
+  // Store onDone in a ref so the effect never needs to list it as a dependency.
+  // Parent components typically pass an inline arrow that would create a new
+  // function reference every render, causing the timers to reset prematurely.
+  const onDoneRef = useRef(onDone);
+  useEffect(() => { onDoneRef.current = onDone; });
 
   useEffect(() => {
     const timers = LINES.map((_, i) =>
       setTimeout(() => setShown(i + 1), 400 + i * 420)
     );
-    const done = setTimeout(onDone, 400 + LINES.length * 420 + 600);
+    const done = setTimeout(() => onDoneRef.current(), 400 + LINES.length * 420 + 600);
     return () => { timers.forEach(clearTimeout); clearTimeout(done); };
-  }, [onDone]);
+  }, []);
 
   return (
     <div className="entry-stage wake-stage">

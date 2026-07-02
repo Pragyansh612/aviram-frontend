@@ -39,7 +39,9 @@ export default function InterviewPrep({ openBrief = false }: { openBrief?: boole
           id: s.id,
           company: s.company_name,
           role: s.job_title,
-          date: s.prep_mode ?? "Scheduled",
+          date: s.interview_at
+            ? new Date(s.interview_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+            : "Scheduled",
           countdown: i === 0 ? "Soon" : "—",
           progress: i === 0 ? 40 : 0,
           soon: i === 0,

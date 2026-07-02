@@ -115,10 +115,13 @@ export default function OnboardingFlow() {
             ? profile.linkedin
             : profile.linkedin ? `https://linkedin.com/in/${profile.linkedin.replace(/^in\//, "")}` : null,
         });
+        const salaryRaw = parseInt(profile.salaryFloor.replace(/\D/g, ""), 10) || 0;
+        // salaryFloor is entered in LPA (e.g. "38" for ₹38 LPA); backend stores
+        // absolute annual figure so multiply by 100,000.
         await apiUpsertPreferences({
           desired_roles: profile.roles.split(/[,·]/).map((s) => s.trim()).filter(Boolean),
           preferred_locations: profile.locations.split(/[,·]/).map((s) => s.trim()).filter(Boolean),
-          min_salary: parseInt(profile.salaryFloor.replace(/\D/g, ""), 10) || undefined,
+          min_salary: salaryRaw > 0 ? salaryRaw * 100_000 : undefined,
           remote_preference: profile.locations.toLowerCase().includes("remote") ? "remote" : "any",
         });
         await apiUpdateAgentSettings({

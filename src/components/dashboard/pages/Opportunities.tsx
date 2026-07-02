@@ -7,6 +7,7 @@ import { addSkippedOpp, removeSkippedOpp, addSessionApps, addSessionTimelineEven
 import { showToast } from "@/components/dashboard/Toast";
 import BulkApplyPanel from "@/components/dashboard/BulkApplyPanel";
 import { useDashboard } from "@/contexts/DashboardContext";
+import { apiRecordOpportunityInteraction } from "@/lib/api";
 import type { Opp } from "@/components/dashboard/DetailPanel";
 
 const OPP_FILTERS = ["All", "Remote", "Referral available", "⚡ Urgent", "IPS ≥ 80", "Series A–B"];
@@ -149,6 +150,10 @@ export default function Opportunities({ openOpp, selectedId }: { openOpp: (o: Op
     const fadeTimer = setTimeout(() => {
       setSkipped((prev) => new Set(prev).add(id));
       setFading((prev) => { const n = new Set(prev); n.delete(id); return n; });
+      // Persist server-side when live
+      if (apiLive) {
+        apiRecordOpportunityInteraction(id, "skipped").catch(() => {});
+      }
       // Persist to sessionStorage so Timeline can render a synthetic Skipped entry
       const opp = sourceOpps.find((o) => o.id === id);
       if (opp) {

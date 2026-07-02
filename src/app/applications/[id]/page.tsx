@@ -1,5 +1,6 @@
 import ApplicationFullPage from "./ApplicationFullPage";
 
-export default function ApplicationPage({ params }: { params: { id: string } }) {
-  return <ApplicationFullPage appId={params.id} />;
+export default async function ApplicationPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return <ApplicationFullPage appId={id} />;
 }

@@ -5,7 +5,8 @@ export function generateStaticParams() {
   return OUTREACH.campaigns.map((c) => ({ id: c.id }));
 }
 
-export default function OutreachPage({ params }: { params: { id: string } }) {
-  const campaign = OUTREACH.campaigns.find((c) => c.id === params.id);
+export default async function OutreachPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const campaign = OUTREACH.campaigns.find((c) => c.id === id);
   return <OutreachFullPage campaign={campaign ?? null} />;
 }

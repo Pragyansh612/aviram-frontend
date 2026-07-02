@@ -119,6 +119,7 @@ export type InterviewSession = {
   company_name: string;
   job_title: string;
   prep_mode: string;
+  interview_at?: string | null;
 };
 
 export type PlatformCredential = {

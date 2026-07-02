@@ -40,7 +40,7 @@ function mapApiCampaign(c: Record<string, unknown>, i: number): CampaignRow {
   return {
     id: String(c.id ?? `c-api-${i}`),
     company: String(c.company_name ?? c.company ?? "—"),
-    role: String(c.job_title ?? c.role ?? "—"),
+    role: String(c.target_role ?? c.job_title ?? c.role ?? "—"),
     status: String(c.status ?? "Active"),
     sent: Number(c.sent_count ?? c.messages_sent ?? 0),
     last: c.updated_at ? new Date(String(c.updated_at)).toLocaleDateString() : "—",
