@@ -43,6 +43,7 @@ export type IPSJob = {
   apply_url: string;
   location: string | null;
   remote_type: string | null;
+  job_type?: string | null;
   posted_at: string | null;
   components: {
     semantic_score: number;
@@ -87,6 +88,10 @@ export type TimelineEntry = {
   match_score: number | null;
   applied_at: string | null;
   apply_url: string;
+  event_type: string;
+  event_at: string | null;
+  job_id: string | null;
+  detail: string | null;
 };
 
 export type AnalyticsSummary = {
@@ -213,6 +218,46 @@ export type ActiveResume = {
   version: number;
 };
 
+export type ApplicationDetail = {
+  id: string;
+  job_id: string;
+  platform: string;
+  status: string;
+  decision_type: string;
+  applied_at: string | null;
+  failure_reason: string | null;
+  result_message: string | null;
+  form_snapshot: Record<string, unknown> | null;
+  resume_id: string | null;
+  resume_version: number | null;
+  match_score: number | null;
+  quality_gate_score: number | null;
+  quality_gate_status: string | null;
+  quality_gate_breakdown: Record<string, unknown> | null;
+  outcome: string | null;
+  outcome_at: string | null;
+  interview_at: string | null;
+  notes: string | null;
+  salary_offered: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CompanyResearch = {
+  company_name: string;
+  domain: string | null;
+  overview: string | null;
+  products: string | null;
+  tech_stack: string[];
+  culture_signals: string[];
+  funding_stage: string | null;
+  funding_amount: string | null;
+  employee_count: string | null;
+  recent_news: Array<Record<string, unknown>>;
+  sources: string[];
+  researched_at: string | null;
+};
+
 export type PlatformCredential = {
   id: string;
   platform: string;
@@ -241,11 +286,11 @@ export function mapCalibration(cal: CalibrationStatus | null | undefined) {
 
 // ── Mappers ─────────────────────────────────────────────────────────────────
 
-function ipsDisplay(score: number): number {
+export function ipsDisplay(score: number): number {
   return Math.round(Math.min(0.9, Math.max(0.01, score)) * 100);
 }
 
-function ageFromPosted(posted: string | null): string {
+export function ageFromPosted(posted: string | null): string {
   if (!posted) return "recent";
   const diff = Date.now() - new Date(posted).getTime();
   const h = Math.floor(diff / 3_600_000);
@@ -274,6 +319,7 @@ export function mapIpsJobToOpp(job: IPSJob, index: number): Opp {
     urgent,
     remote: job.remote_type === "remote" || job.remote_type === "hybrid",
     location: job.location || "—",
+    jobType: job.job_type ?? null,
     stack: [] as string[],
     referral,
     refPath: referral ? "Referral path available" : null,
@@ -323,12 +369,31 @@ export function mapTimelineEntry(e: TimelineEntry) {
   const ips = e.match_score != null ? ipsDisplay(e.match_score) : null;
   let type = "applied";
   let title = "Application Submitted";
-  if (e.outcome === "interview") { type = "interview"; title = "Interview Scheduled"; }
-  else if (e.outcome === "rejected") { type = "skipped"; title = "Rejected"; }
-  else if (e.outcome === "offer") { type = "response"; title = "Offer Received"; }
 
-  const time = e.applied_at
-    ? new Date(e.applied_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  switch (e.event_type) {
+    case "interview_scheduled":
+      type = "interview"; title = "Interview Scheduled"; break;
+    case "outcome":
+      if (e.outcome === "interview") { type = "interview"; title = "Interview Confirmed"; }
+      else if (e.outcome === "rejected") { type = "skipped"; title = "Rejected"; }
+      else if (e.outcome === "offer") { type = "response"; title = "Offer Received"; }
+      else { type = "response"; title = `Outcome: ${e.outcome ?? "updated"}`; }
+      break;
+    case "referral_found":
+      type = "referral"; title = "Referral Found"; break;
+    case "resume_tailored":
+      type = "resume"; title = "Resume Tailored"; break;
+    case "opportunity_scored":
+      type = "scored"; title = "Opportunity Scored"; break;
+    case "skipped":
+      type = "skipped"; title = "Skipped"; break;
+    default:
+      type = "applied"; title = "Application Submitted";
+  }
+
+  const at = e.event_at ?? e.applied_at;
+  const time = at
+    ? new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     : "—";
 
   return {
@@ -337,8 +402,8 @@ export function mapTimelineEntry(e: TimelineEntry) {
     title,
     company: e.company,
     role: e.job_title,
-    extra: `${e.platform}${ips != null ? ` · IPS ${ips}` : ""}`,
-    action: type === "interview" ? "Open Brief" : "View",
+    extra: e.detail || `${e.platform}${ips != null ? ` · IPS ${ips}` : ""}`,
+    action: type === "interview" ? "Open Brief" : type === "referral" ? "Review" : type === "resume" ? "View Changes" : type === "scored" ? null : "View",
     ips,
     appId: e.application_id,
   };

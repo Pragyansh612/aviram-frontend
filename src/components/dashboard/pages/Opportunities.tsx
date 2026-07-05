@@ -7,15 +7,31 @@ import { addSkippedOpp, removeSkippedOpp, addSessionApps, addSessionTimelineEven
 import { showToast } from "@/components/dashboard/Toast";
 import BulkApplyPanel from "@/components/dashboard/BulkApplyPanel";
 import { useDashboard } from "@/contexts/DashboardContext";
-import { apiRecordOpportunityInteraction } from "@/lib/api";
+import { apiRecordOpportunityInteraction, apiGetPreferences } from "@/lib/api";
 import type { Opp } from "@/components/dashboard/DetailPanel";
+import type { PreferencesResponse } from "@/lib/api/types";
 
 const OPP_FILTERS = ["All", "Remote", "Referral available", "⚡ Urgent", "IPS ≥ 80", "Series A–B"];
 
-// Mission label map for group headers
-const MISSION_LABELS: Record<string, string> = Object.fromEntries(
-  MISSIONS.map((m) => [m.id, m.title])
-);
+const WINDOW_OPTIONS = [
+  { label: "Any time", value: "" },
+  { label: "Last 24h", value: "24" },
+  { label: "Last 3 days", value: "72" },
+  { label: "Last 7 days", value: "168" },
+  { label: "Last 14 days", value: "336" },
+];
+const MIN_IPS_OPTIONS = [
+  { label: "Any IPS", value: "" },
+  { label: "IPS ≥ 50", value: "50" },
+  { label: "IPS ≥ 65", value: "65" },
+  { label: "IPS ≥ 80", value: "80" },
+];
+const REMOTE_OPTIONS = [
+  { label: "Any location", value: "" },
+  { label: "Remote", value: "remote" },
+  { label: "Hybrid", value: "hybrid" },
+  { label: "Onsite", value: "onsite" },
+];
 
 // Map each opp ID to its current application status (if any), derived from APPS data.
 // Uses company + role as the join key (matches the findOppForApp logic in Applications.tsx).
@@ -124,8 +140,42 @@ function OppRow({
 interface UndoState { id: string; timer: ReturnType<typeof setTimeout> }
 
 export default function Opportunities({ openOpp, selectedId }: { openOpp: (o: Opp) => void; selectedId?: string | null }) {
-  const { opportunities: apiOpps, applications, apiLive, applyToJob, refresh } = useDashboard();
-  const sourceOpps = apiLive ? apiOpps : (apiOpps.length ? apiOpps : OPPS);
+  const { opportunities: apiOpps, applications, apiLive, applyToJob, refresh, fetchFilteredOpportunities } = useDashboard();
+
+  // Advanced (backend-driven) filters: remote / platform / role type / min IPS / posting age
+  const [advRemote, setAdvRemote] = useState("");
+  const [advPlatform, setAdvPlatform] = useState("");
+  const [advJobType, setAdvJobType] = useState("");
+  const [advMinIps, setAdvMinIps] = useState("");
+  const [advWindow, setAdvWindow] = useState("");
+  const [filteredOpps, setFilteredOpps] = useState<Opp[] | null>(null);
+  const [filtersLoading, setFiltersLoading] = useState(false);
+
+  const hasAdvFilter = Boolean(advRemote || advPlatform || advJobType || advMinIps || advWindow);
+
+  useEffect(() => {
+    if (!apiLive || !hasAdvFilter) return;
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      setFiltersLoading(true);
+      const result = await fetchFilteredOpportunities({
+        remote: advRemote || undefined,
+        platform: advPlatform || undefined,
+        job_type: advJobType || undefined,
+        min_ips: advMinIps ? Number(advMinIps) / 100 : undefined,
+        window_hours: advWindow ? Number(advWindow) : undefined,
+      });
+      if (!cancelled) { setFilteredOpps(result); setFiltersLoading(false); }
+    }, 300);
+    return () => { cancelled = true; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiLive, advRemote, advPlatform, advJobType, advMinIps, advWindow, hasAdvFilter]);
+
+  // Only trust filteredOpps while an advanced filter is actually active — avoids
+  // needing a synchronous reset when filters are cleared.
+  const sourceOpps = apiLive
+    ? (hasAdvFilter ? (filteredOpps ?? apiOpps) : apiOpps)
+    : (apiOpps.length ? apiOpps : OPPS);
   const sourceApps = apiLive ? applications : (applications.length ? applications : APPS);
   const appliedMap = useMemo(() => buildAppliedMap(sourceApps, sourceOpps), [sourceApps, sourceOpps]);
   const [filter, setFilter] = useState("All");
@@ -138,6 +188,48 @@ export default function Opportunities({ openOpp, selectedId }: { openOpp: (o: Op
   // Seed applied set from APPS data + track bulk-apply adds for this session
   const [sessionApplied, setSessionApplied] = useState<Set<string>>(new Set());
   const undoRef = useRef<UndoState | null>(null);
+
+  // Distinct platforms/role types seen in the live queue, for filter dropdown options
+  const platformOptions = useMemo(
+    () => Array.from(new Set(apiOpps.map((o) => o.platform).filter(Boolean))).sort(),
+    [apiOpps],
+  );
+  const jobTypeOptions = useMemo(
+    () => Array.from(new Set(apiOpps.map((o) => o.jobType).filter((v): v is string => Boolean(v)))).sort(),
+    [apiOpps],
+  );
+
+  // Missions: derived from real preferences (desired roles) + real application/queue counts.
+  const [prefs, setPrefs] = useState<PreferencesResponse | null>(null);
+  useEffect(() => {
+    if (!apiLive) return;
+    let cancelled = false;
+    apiGetPreferences().then((p) => { if (!cancelled) setPrefs(p); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [apiLive]);
+
+  const missions = useMemo(() => {
+    if (!apiLive || !prefs || prefs.desired_roles.length === 0) return MISSIONS;
+    return prefs.desired_roles.slice(0, 3).map((role, i) => {
+      const roleLower = role.toLowerCase();
+      const matchedOpps = apiOpps.filter((o) => o.role.toLowerCase().includes(roleLower));
+      const matchedApps = sourceApps.filter((a) => a.role.toLowerCase().includes(roleLower));
+      const done = matchedApps.length;
+      const remaining = matchedOpps.filter((o) => !appliedMap.has(o.id) && !sessionApplied.has(o.id));
+      const predicted = remaining.reduce((sum, o) => sum + o.ips / 100, 0);
+      return {
+        id: `pref-${i}`,
+        title: role,
+        done,
+        target: done + remaining.length,
+        predicted: Math.round(predicted * 10) / 10,
+      };
+    });
+  }, [apiLive, prefs, apiOpps, sourceApps, appliedMap, sessionApplied]);
+  const missionLabels: Record<string, string> = useMemo(
+    () => Object.fromEntries(missions.map((m) => [m.id, m.title])),
+    [missions],
+  );
 
   useEffect(() => { undoRef.current = undo; }, [undo]);
 
@@ -264,16 +356,20 @@ export default function Opportunities({ openOpp, selectedId }: { openOpp: (o: Op
         sub="Every opening Aviram has scored, ranked by interview probability and grouped under the missions you set."
       />
       <div className="sec-label">Active missions <span className="ln" /></div>
-      <div className="missions">
-        {MISSIONS.map((m) => (
-          <div className="mission" key={m.id}>
-            <div className="mh"><span className="mt">{m.title}</span><span className="mk">Mission</span></div>
-            <div className="mfrac"><span className="big">{m.done}<span style={{ color: "var(--ink-4)", fontWeight: 400 }}>/{m.target}</span></span><span className="lbl">applications</span></div>
-            <div className="mbar"><i style={{ width: (m.done / m.target * 100) + "%" }} /></div>
-            <div className="mpred"><span style={{ width: 13, height: 13, display: "inline-block", color: "var(--clay)" }}><Icon name="trending" /></span> Predicted interviews <b>{m.predicted.toFixed(1)}</b></div>
-          </div>
-        ))}
-      </div>
+      {apiLive && prefs && prefs.desired_roles.length === 0 ? (
+        <EmptyState>Set your desired roles in Settings to see missions computed from your real preferences.</EmptyState>
+      ) : (
+        <div className="missions">
+          {missions.map((m) => (
+            <div className="mission" key={m.id}>
+              <div className="mh"><span className="mt">{m.title}</span><span className="mk">Mission</span></div>
+              <div className="mfrac"><span className="big">{m.done}<span style={{ color: "var(--ink-4)", fontWeight: 400 }}>/{m.target || m.done || 1}</span></span><span className="lbl">applications</span></div>
+              <div className="mbar"><i style={{ width: (m.target > 0 ? (m.done / m.target * 100) : 100) + "%" }} /></div>
+              <div className="mpred"><span style={{ width: 13, height: 13, display: "inline-block", color: "var(--clay)" }}><Icon name="trending" /></span> Predicted interviews <b>{m.predicted.toFixed(1)}</b></div>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="sec-label" style={{ marginTop: 30 }}>Queued toward your missions <span className="ln" /></div>
       <div className="filterbar" style={{ justifyContent: "space-between" }}>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -304,6 +400,29 @@ export default function Opportunities({ openOpp, selectedId }: { openOpp: (o: Op
         </div>
       </div>
 
+      {apiLive && (
+        <div className="filterbar" style={{ gap: 8, flexWrap: "wrap" }}>
+          <select className="fchip" value={advRemote} onChange={(e) => setAdvRemote(e.target.value)} style={{ cursor: "pointer" }}>
+            {REMOTE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          <select className="fchip" value={advPlatform} onChange={(e) => setAdvPlatform(e.target.value)} style={{ cursor: "pointer" }}>
+            <option value="">Any platform</option>
+            {platformOptions.map((p) => <option key={p} value={p}>{p}</option>)}
+          </select>
+          <select className="fchip" value={advJobType} onChange={(e) => setAdvJobType(e.target.value)} style={{ cursor: "pointer" }}>
+            <option value="">Any role type</option>
+            {jobTypeOptions.map((j) => <option key={j} value={j}>{j}</option>)}
+          </select>
+          <select className="fchip" value={advMinIps} onChange={(e) => setAdvMinIps(e.target.value)} style={{ cursor: "pointer" }}>
+            {MIN_IPS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          <select className="fchip" value={advWindow} onChange={(e) => setAdvWindow(e.target.value)} style={{ cursor: "pointer" }}>
+            {WINDOW_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          {filtersLoading && <span style={{ fontSize: 12, color: "var(--ink-4)" }}>Filtering…</span>}
+        </div>
+      )}
+
       <div className="opp-list">
         {visibleList.length === 0 ? (
           <EmptyState>No opportunities match your current filters. Adjust the IPS minimum or add role types in Settings.</EmptyState>
@@ -311,14 +430,22 @@ export default function Opportunities({ openOpp, selectedId }: { openOpp: (o: Op
           // Group by mission view
           (() => {
             const groups: Array<{ missionId: string | null; label: string; items: typeof visibleList }> = [];
+            // In live mode, real jobs carry no `mission` tag — assign by matching
+            // the opp's role against the (preference-derived) mission titles instead.
+            const missionOf = (o: Opp): string | null => {
+              if (!apiLive) return o.mission;
+              const roleLower = o.role.toLowerCase();
+              const m = missions.find((mm) => roleLower.includes(mm.title.toLowerCase()));
+              return m ? m.id : null;
+            };
             // Preserve IPS sort within groups; group order = missions order then null
-            const orderedMissionIds = [...MISSIONS.map((m) => m.id), null];
+            const orderedMissionIds = [...missions.map((m) => m.id), null];
             for (const mid of orderedMissionIds) {
               const items = visibleList
-                .filter((o) => o.mission === mid)
+                .filter((o) => missionOf(o) === mid)
                 .sort((a, b) => b.ips - a.ips);
               if (items.length > 0) {
-                groups.push({ missionId: mid, label: mid ? (MISSION_LABELS[mid] ?? mid) : "No mission", items });
+                groups.push({ missionId: mid, label: mid ? (missionLabels[mid] ?? mid) : "No mission", items });
               }
             }
             return groups.map(({ missionId, label, items }) => (

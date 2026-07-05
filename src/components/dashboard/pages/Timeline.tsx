@@ -21,7 +21,8 @@ const iconSm: React.CSSProperties = { width: 13, height: 13, display: "inline-bl
 const TL_FILTERS = [
   { id: "all", label: "All" }, { id: "applied", label: "Applied" },
   { id: "response", label: "Responses" }, { id: "interview", label: "Interviews" },
-  { id: "referral", label: "Referrals" }, { id: "skipped", label: "Skipped" },
+  { id: "referral", label: "Referrals" }, { id: "resume", label: "Resume Tailored" },
+  { id: "scored", label: "Scored" }, { id: "skipped", label: "Skipped" },
 ];
 const TL_ICON: Record<string, string> = {
   interview: "calendar", applied: "check", referral: "referral", resume: "doc",

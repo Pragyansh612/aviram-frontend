@@ -39,7 +39,7 @@ import {
   mapCalibration,
 } from "@/lib/api";
 import { touchLastSync } from "@/components/dashboard/session";
-import type { TimelineEntry } from "@/lib/api";
+import type { TimelineEntry, ApplyQueueFilters } from "@/lib/api";
 
 type TimelineEvent = Omit<ReturnType<typeof mapTimelineEntry>, "appId"> & {
   appId?: string;
@@ -60,6 +60,7 @@ type DashboardState = {
   refresh: () => Promise<void>;
   applyToJob: (jobId: string) => Promise<{ ok: boolean; message: string }>;
   setRunning: (running: boolean) => Promise<void>;
+  fetchFilteredOpportunities: (filters: ApplyQueueFilters) => Promise<Opp[] | null>;
 };
 
 const DashboardContext = createContext<DashboardState | null>(null);
@@ -218,6 +219,16 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
   }, [apiLive, refresh]);
 
+  const fetchFilteredOpportunities = useCallback(async (filters: ApplyQueueFilters) => {
+    if (!apiLive) return null;
+    try {
+      const queue = await apiGetApplyQueue(50, filters);
+      return queue.jobs.map(mapIpsJobToOpp);
+    } catch {
+      return null;
+    }
+  }, [apiLive]);
+
   const setRunning = useCallback(async (next: boolean) => {
     if (!apiLive) {
       setRunningState(next);
@@ -244,9 +255,11 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     refresh,
     applyToJob,
     setRunning,
+    fetchFilteredOpportunities,
   }), [
     apiLive, loading, opportunities, timeline, applications,
     briefStats, userMeta, running, refresh, applyToJob, setRunning,
+    fetchFilteredOpportunities,
   ]);
 
   return (
@@ -271,6 +284,7 @@ export function useDashboard(): DashboardState {
       refresh: async () => {},
       applyToJob: async () => ({ ok: false, message: "Not connected" }),
       setRunning: async (r) => { void r; },
+      fetchFilteredOpportunities: async () => null,
     };
   }
   return ctx;

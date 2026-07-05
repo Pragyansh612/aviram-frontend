@@ -4,9 +4,11 @@ import type {
   ActiveResume,
   AgentStatusResponse,
   AnalyticsSummary,
+  ApplicationDetail,
   ApplicationRow,
   ApplyQueueResponse,
   CalibrationStatus,
+  CompanyResearch,
   ComputeIPSResponse,
   InterviewSession,
   JobDetail,
@@ -124,8 +126,22 @@ export async function apiGetAgentActivity(limit = 50): Promise<{ activity: Array
 
 // ── IPS / Opportunities ───────────────────────────────────────────────────────
 
-export async function apiGetApplyQueue(limit = 50): Promise<ApplyQueueResponse> {
-  return apiFetch<ApplyQueueResponse>(`/ips/queue?limit=${limit}`);
+export type ApplyQueueFilters = {
+  window_hours?: number;
+  min_ips?: number;
+  remote?: string;
+  platform?: string;
+  job_type?: string;
+};
+
+export async function apiGetApplyQueue(limit = 50, filters?: ApplyQueueFilters): Promise<ApplyQueueResponse> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (filters?.window_hours != null) params.set("window_hours", String(filters.window_hours));
+  if (filters?.min_ips != null) params.set("min_ips", String(filters.min_ips));
+  if (filters?.remote) params.set("remote", filters.remote);
+  if (filters?.platform) params.set("platform", filters.platform);
+  if (filters?.job_type) params.set("job_type", filters.job_type);
+  return apiFetch<ApplyQueueResponse>(`/ips/queue?${params.toString()}`);
 }
 
 export async function apiApplyToJob(job_id: string): Promise<{ success: boolean; message: string }> {
@@ -184,6 +200,10 @@ export async function apiUpdateApplicationOutcome(
   });
 }
 
+export async function apiGetApplication(appId: string): Promise<ApplicationDetail> {
+  return apiFetch<ApplicationDetail>(`/applications/${appId}`);
+}
+
 // ── Credentials ───────────────────────────────────────────────────────────────
 
 export async function apiListCredentials(): Promise<PlatformCredential[]> {
@@ -224,6 +244,10 @@ export async function apiListResumes(): Promise<{ resumes: Array<Record<string, 
 export async function apiListInterviewSessions(): Promise<InterviewSession[]> {
   const data = await apiFetch<InterviewSession[] | { sessions: InterviewSession[] }>("/interview/sessions");
   return Array.isArray(data) ? data : (data.sessions ?? []);
+}
+
+export async function apiGetCompanyResearch(companyName: string): Promise<CompanyResearch> {
+  return apiFetch<CompanyResearch>(`/interview/research/${encodeURIComponent(companyName)}`);
 }
 
 // ── Outreach & Referral ───────────────────────────────────────────────────────
