@@ -3,7 +3,13 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AuthShell from "@/components/auth/AuthShell";
-import { beginLoginSession, isAuthed, isOnboardingComplete, markAuthed } from "@/components/dashboard/session";
+import {
+  beginLoginSession,
+  isAuthed,
+  isOnboardingComplete,
+  markAuthed,
+  syncOnboardingStateFromBackend,
+} from "@/components/dashboard/session";
 import { apiLogin, ApiError } from "@/lib/api";
 
 export default function LoginPageClient() {
@@ -14,9 +20,15 @@ export default function LoginPageClient() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (isAuthed()) {
-      router.replace(isOnboardingComplete() ? "/dashboard" : "/onboarding");
-    }
+    if (!isAuthed()) return;
+    let cancelled = false;
+    (async () => {
+      const backendOnboarded = await syncOnboardingStateFromBackend();
+      if (cancelled) return;
+      const onboarded = backendOnboarded ?? isOnboardingComplete();
+      router.replace(onboarded ? "/dashboard" : "/onboarding");
+    })();
+    return () => { cancelled = true; };
   }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,7 +39,12 @@ export default function LoginPageClient() {
       await apiLogin(email, password);
       markAuthed();
       beginLoginSession();
-      router.push(isOnboardingComplete() ? "/dashboard" : "/onboarding");
+      // Ask the backend — not just this browser's localStorage — whether
+      // onboarding is really done. Fixes the bug where a new browser or
+      // cleared storage re-ran onboarding for an already-onboarded user.
+      const backendOnboarded = await syncOnboardingStateFromBackend();
+      const onboarded = backendOnboarded ?? isOnboardingComplete();
+      router.push(onboarded ? "/dashboard" : "/onboarding");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Sign in failed. Check your credentials.");
     } finally {

@@ -20,6 +20,8 @@ export type ProfileResponse = {
   github_url: string | null;
   website_url: string | null;
   bio: string | null;
+  onboarding_completed: boolean;
+  onboarding_completed_at: string | null;
 };
 
 export type PreferencesResponse = {
@@ -120,6 +122,95 @@ export type InterviewSession = {
   job_title: string;
   prep_mode: string;
   interview_at?: string | null;
+};
+
+export type JobDetail = {
+  id: string;
+  title: string;
+  company: string;
+  location: string | null;
+  description: string | null;
+  job_type: string | null;
+  remote_type: string;
+  salary_min: number | null;
+  salary_max: number | null;
+  salary_currency: string;
+  skills_required: string[];
+  apply_url: string;
+  alternate_urls: string[];
+  is_active: boolean;
+  posted_at: string | null;
+  last_seen_at: string;
+  created_at: string;
+  job_sources?: Array<{ platform: string; source_url: string; scraped_at: string }>;
+};
+
+export type IPSComponents = {
+  semantic_score: number;
+  platform_rate: number;
+  company_rate: number | null;
+  recency_score: number;
+  urgency_score: number;
+  referral_bonus: number;
+  calibration_adj: number;
+};
+
+export type ComputeIPSResponse = {
+  job_id: string;
+  ips_score: number;
+  estimated_probability: number;
+  components: IPSComponents;
+  platform: string;
+  archetype: string;
+  quality_multiplier: number;
+  explanation: string;
+};
+
+export type ReferralPath = {
+  id: string;
+  job_id: string;
+  connection_id: string | null;
+  connection_name: string;
+  connection_role: string | null;
+  connection_company: string | null;
+  path_type: string;
+  path_strength: number;
+  mutual_contact: string | null;
+  notes: string | null;
+  detected_at: string;
+};
+
+export type PathDetectionResponse = {
+  job_id: string;
+  company: string;
+  paths: ReferralPath[];
+  total: number;
+  best_strength: number;
+  message: string;
+};
+
+export type SkillGap = { skill: string; category: string; importance: string; suggestion: string };
+export type Suggestion = { area: string; severity: string; message: string; action: string | null };
+
+export type ResumeMatchResponse = {
+  resume_id: string;
+  job_id: string;
+  overall_score: number;
+  skills_score: number;
+  title_score: number;
+  description_score: number;
+  preference_score: number;
+  skills_matched: string[];
+  skills_missing: string[];
+  skill_gaps: SkillGap[];
+  suggestions: Suggestion[];
+};
+
+export type ActiveResume = {
+  id: string;
+  filename: string;
+  is_active: boolean;
+  version: number;
 };
 
 export type PlatformCredential = {

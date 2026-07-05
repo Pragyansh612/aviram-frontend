@@ -103,6 +103,31 @@ export function markOnboardingComplete(): void {
   } catch {}
 }
 
+/**
+ * The local flag above is only a same-browser cache. The database's
+ * profiles.onboarding_completed column (checked via GET /profile/me) is the
+ * real source of truth — a new browser or cleared storage must defer to it
+ * rather than re-running onboarding for a user who already finished it.
+ */
+export async function syncOnboardingStateFromBackend(): Promise<boolean | null> {
+  try {
+    const { apiGetProfile } = await import("@/lib/api");
+    const profile = await apiGetProfile();
+    if (profile.onboarding_completed) {
+      markOnboardingComplete();
+      return true;
+    }
+    // Backend says not completed — don't trust a stale local flag from a
+    // half-finished session; clear it so the guard redirects to /onboarding.
+    localStorage.removeItem(ONBOARDING_KEY);
+    clearOnboardedCookie();
+    return false;
+  } catch {
+    // Backend unreachable — fall back to whatever this browser already knows.
+    return null;
+  }
+}
+
 export function getStoredProfile(): StoredProfile | null {
   try {
     const raw = localStorage.getItem(PROFILE_KEY);

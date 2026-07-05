@@ -10,6 +10,7 @@ import {
   isOnboardingComplete,
   saveStoredProfile,
   saveStoredRules,
+  syncOnboardingStateFromBackend,
   type StoredProfile,
 } from "@/components/dashboard/session";
 import TagAutocomplete from "@/components/ui/TagAutocomplete";
@@ -28,6 +29,7 @@ import {
   apiUpsertPreferences,
   apiUpdateAgentSettings,
   apiUploadResume,
+  apiCompleteOnboarding,
 } from "@/lib/api";
 import { getUserEmail } from "@/lib/api/tokens";
 
@@ -89,8 +91,21 @@ export default function OnboardingFlow() {
 
   useEffect(() => {
     if (!hydrated) return;
-    if (!isAuthed()) router.replace("/login");
-    else if (isOnboardingComplete()) router.replace("/dashboard");
+    if (!isAuthed()) {
+      router.replace("/login");
+      return;
+    }
+    // Defer to the backend's onboarding_completed flag — this browser's
+    // localStorage may simply never have run onboarding for a user who
+    // already completed it elsewhere.
+    let cancelled = false;
+    (async () => {
+      const backendOnboarded = await syncOnboardingStateFromBackend();
+      if (cancelled) return;
+      const onboarded = backendOnboarded ?? isOnboardingComplete();
+      if (onboarded) router.replace("/dashboard");
+    })();
+    return () => { cancelled = true; };
   }, [router, hydrated]);
 
   const stepIdx = STEPS.indexOf(step);
@@ -131,6 +146,9 @@ export default function OnboardingFlow() {
           company_blocklist: parseTags(rules.blockedCompanies),
           is_enabled: true,
         });
+        // Server-side completion flag — the real source of truth checked
+        // on every future login, from any browser.
+        await apiCompleteOnboarding();
       } catch {
         // local onboarding still completes if API unavailable
       }

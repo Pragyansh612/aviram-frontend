@@ -1,16 +1,21 @@
 import { apiFetch } from "./client";
 import { saveTokens, clearTokens } from "./tokens";
 import type {
+  ActiveResume,
   AgentStatusResponse,
   AnalyticsSummary,
   ApplicationRow,
   ApplyQueueResponse,
   CalibrationStatus,
+  ComputeIPSResponse,
   InterviewSession,
+  JobDetail,
+  PathDetectionResponse,
   PlatformCredential,
   PreferencesResponse,
   ProfileResponse,
   ReferralRequest,
+  ResumeMatchResponse,
   TimelineEntry,
   TokenResponse,
 } from "./types";
@@ -66,6 +71,10 @@ export async function apiUpdateProfile(body: Partial<ProfileResponse>): Promise<
 
 export async function apiGetCalibration(): Promise<CalibrationStatus> {
   return apiFetch<CalibrationStatus>("/profile/me/calibration");
+}
+
+export async function apiCompleteOnboarding(): Promise<{ onboarding_completed: boolean; onboarding_completed_at: string }> {
+  return apiFetch("/profile/me/onboarding-complete", { method: "POST" });
 }
 
 // ── Preferences ───────────────────────────────────────────────────────────────
@@ -124,6 +133,31 @@ export async function apiApplyToJob(job_id: string): Promise<{ success: boolean;
     method: "POST",
     body: JSON.stringify({ job_id }),
   });
+}
+
+// ── Job / Opportunity detail ──────────────────────────────────────────────────
+
+export async function apiGetJobDetail(jobId: string): Promise<JobDetail> {
+  return apiFetch<JobDetail>(`/jobs/${jobId}`);
+}
+
+export async function apiComputeIPS(job_id: string, was_referred = false): Promise<ComputeIPSResponse> {
+  return apiFetch<ComputeIPSResponse>("/ips/compute", {
+    method: "POST",
+    body: JSON.stringify({ job_id, was_referred }),
+  });
+}
+
+export async function apiGetReferralPaths(jobId: string): Promise<PathDetectionResponse> {
+  return apiFetch<PathDetectionResponse>(`/referral/paths/${jobId}`);
+}
+
+export async function apiGetActiveResume(): Promise<ActiveResume> {
+  return apiFetch<ActiveResume>("/resumes/active");
+}
+
+export async function apiGetResumeMatch(resumeId: string, jobId: string): Promise<ResumeMatchResponse> {
+  return apiFetch<ResumeMatchResponse>(`/resume-intelligence/match/${resumeId}/${jobId}`);
 }
 
 // ── Applications & Analytics ──────────────────────────────────────────────────
