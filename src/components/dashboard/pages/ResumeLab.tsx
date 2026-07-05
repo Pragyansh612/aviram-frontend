@@ -36,7 +36,9 @@ export default function ResumeLab() {
             skills: ["Python", "Go", "PostgreSQL"],
             highlights: ["Uploaded via API"],
           }));
-          return mapped.length ? mapped : prev;
+          if (!mapped.length) return prev;
+          setActive((cur) => mapped.some((v) => v.id === cur) ? cur : mapped[0]!.id);
+          return mapped;
         });
       })
       .catch(() => {});
@@ -88,7 +90,7 @@ export default function ResumeLab() {
     );
   }
 
-  const preview = variants.find(v => v.id === active)!;
+  const preview = variants.find(v => v.id === active) ?? variants[0]!;
 
   return (
     <div className="page">
