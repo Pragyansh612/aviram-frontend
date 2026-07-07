@@ -106,6 +106,9 @@ function OppRow({
           {o.urgent && !isSkipped && !isApplied ? <Urgent /> : null}
         </div>
         <div className="or-sub">{o.stage} · {o.platform} · {o.age} old · {o.location}</div>
+        {o.userHistoryDisplay && (
+          <div className="or-history">{o.userHistoryDisplay}</div>
+        )}
         <div className="or-tags">
           {o.stack.map((s) => <span className="tagchip" key={s}>{s}</span>)}
           {o.referral && !isSkipped && (

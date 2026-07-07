@@ -34,6 +34,13 @@ export type PreferencesResponse = {
   industries: string[];
 };
 
+export type UserHistory = {
+  action: string | null;
+  outcome: string | null;
+  last_action_at: string | null;
+  display: string | null;
+};
+
 export type IPSJob = {
   job_id: string;
   job_title: string;
@@ -51,6 +58,7 @@ export type IPSJob = {
     referral_bonus: number;
     company_rate: number | null;
   };
+  user_history?: UserHistory | null;
 };
 
 export type ApplyQueueResponse = {
@@ -335,6 +343,7 @@ export function mapIpsJobToOpp(job: IPSJob, index: number): Opp {
     fundedDays: urgent ? 14 : null,
     skipped: false,
     skipReason: "",
+    userHistoryDisplay: job.user_history?.display ?? null,
   } as Opp;
 }
 

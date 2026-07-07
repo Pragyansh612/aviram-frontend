@@ -994,6 +994,7 @@ section { position: relative; }
 .opp-row .or-m { flex: 1; min-width: 0; }
 .opp-row .or-role { font-size: 15px; font-weight: 500; letter-spacing: -0.01em; display: flex; align-items: center; gap: 9px; }
 .opp-row .or-sub { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); margin-top: 4px; }
+.opp-row .or-history { font-family: var(--mono); font-size: 11.5px; color: var(--ink-4); margin-top: 4px; }
 .opp-row .or-tags { display: flex; align-items: center; gap: 7px; margin-top: 8px; flex-wrap: wrap; }
 .opp-row .or-tags .ref { color: var(--clay); font-family: var(--mono); font-size: 11px; display: inline-flex; align-items: center; gap: 4px; }
 .opp-row .or-act { display: flex; align-items: center; gap: 8px; flex: none; }

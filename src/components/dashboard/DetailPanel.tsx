@@ -11,6 +11,7 @@ import type { ResumeMatchResponse } from "@/lib/api/types";
 
 export type Opp = (typeof OPPS)[number] & {
   jobType?: string | null;
+  userHistoryDisplay?: string | null;
 };
 
 function refInitials(refPath: string) {
