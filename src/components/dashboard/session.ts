@@ -423,6 +423,17 @@ export function saveBriefVariant(v: "letter" | "terminal"): void {
   try { localStorage.setItem(BRIEF_VARIANT_KEY, v); } catch {}
 }
 
+// ---- Referral network import status (LinkedIn / GitHub) ----
+const NETWORK_IMPORTED_KEY = "aviram-network-imported";
+
+export function getNetworkImported(): boolean {
+  try { return localStorage.getItem(NETWORK_IMPORTED_KEY) === "1"; } catch { return false; }
+}
+
+export function saveNetworkImported(): void {
+  try { localStorage.setItem(NETWORK_IMPORTED_KEY, "1"); } catch {}
+}
+
 /** Fresh login — show Morning Brief again. */
 export function beginLoginSession(): void {
   clearBriefSeen();

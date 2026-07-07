@@ -14,6 +14,7 @@ jest.mock("@/components/dashboard/session", () => ({
   requestOpenApplication: jest.fn(),
   requestHighlightOutreachDraft: jest.fn(),
   getCalibrationCount: jest.fn(() => 14),
+  getNetworkImported: jest.fn(() => true),
 }));
 
 // ── Icons mock ────────────────────────────────────────────────────────────────

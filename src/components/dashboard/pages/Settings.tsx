@@ -11,6 +11,8 @@ import {
   getCalibrationCount,
   getBriefVariant,
   saveBriefVariant,
+  getNetworkImported,
+  saveNetworkImported,
 } from "@/components/dashboard/session";
 import {
   apiUpdateProfile,
@@ -22,7 +24,10 @@ import {
   apiGetProfile,
   apiGetPreferences,
   apiGetAgentSettings,
+  apiImportLinkedInConnections,
+  apiSyncGithubNetwork,
 } from "@/lib/api";
+import type { LinkedInConnectionItem } from "@/lib/api";
 import { PageHead } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 import { showToast } from "@/components/dashboard/Toast";
@@ -42,6 +47,53 @@ import {
 } from "@/lib/job-catalog";
 
 const STUB_MSG = "OAuth connection will be available when connected to backend.";
+
+function splitCsvLine(line: string): string[] {
+  const out: string[] = [];
+  let cur = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++; } else inQuotes = false;
+      } else cur += c;
+    } else if (c === '"') inQuotes = true;
+    else if (c === ",") { out.push(cur); cur = ""; }
+    else cur += c;
+  }
+  out.push(cur);
+  return out;
+}
+
+function parseLinkedInConnectionsCsv(text: string): LinkedInConnectionItem[] {
+  const lines = text.split(/\r\n|\n/).filter((l) => l.trim().length > 0);
+  const headerIdx = lines.findIndex((l) => l.trim().startsWith("First Name,"));
+  if (headerIdx === -1) return [];
+  const header = splitCsvLine(lines[headerIdx]).map((h) => h.trim().toLowerCase());
+  const col = (name: string) => header.indexOf(name);
+  const iFirst = col("first name");
+  const iLast = col("last name");
+  const iEmail = col("email address");
+  const iCompany = col("company");
+  const iPosition = col("position");
+  const iConnected = col("connected on");
+  const out: LinkedInConnectionItem[] = [];
+  for (const line of lines.slice(headerIdx + 1)) {
+    const cols = splitCsvLine(line);
+    const first_name = (cols[iFirst] || "").trim();
+    if (!first_name) continue;
+    out.push({
+      first_name,
+      last_name: (cols[iLast] || "").trim(),
+      email: iEmail >= 0 ? (cols[iEmail] || "").trim() || null : null,
+      company: iCompany >= 0 ? (cols[iCompany] || "").trim() || null : null,
+      position: iPosition >= 0 ? (cols[iPosition] || "").trim() || null : null,
+      connected_on: iConnected >= 0 ? (cols[iConnected] || "").trim() || null : null,
+    });
+  }
+  return out;
+}
 
 function SettingsSection({ icon, title, sub, children }: { icon: string; title: string; sub: string; children: React.ReactNode }) {
   return (
@@ -149,6 +201,10 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
   const { apiLive, userMeta } = useDashboard();
   const [briefVariant, setBriefVariant] = useState<"letter" | "terminal">("letter");
   const [conns, setConns] = useState(DEFAULT_CONNS);
+  const [networkImported, setNetworkImported] = useState(false);
+  const [linkedinBusy, setLinkedinBusy] = useState(false);
+  const [githubUsername, setGithubUsername] = useState("");
+  const [githubBusy, setGithubBusy] = useState(false);
 
   const [profile, setProfile] = useState(() => {
     const stored = getStoredProfile();
@@ -186,6 +242,10 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
       "Auto-send referrals": stored?.["Auto-send referrals"] === "true",
     };
   });
+
+  useEffect(() => {
+    setNetworkImported(getNetworkImported());
+  }, []);
 
   useEffect(() => {
     setBriefVariant(getBriefVariant());
@@ -338,6 +398,45 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
     }
   };
 
+  const handleLinkedInFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setLinkedinBusy(true);
+    try {
+      const text = await file.text();
+      const connections = parseLinkedInConnectionsCsv(text);
+      if (connections.length === 0) {
+        showToast("Couldn't find any connections in that file", "warn");
+        return;
+      }
+      const result = await apiImportLinkedInConnections(connections);
+      saveNetworkImported();
+      setNetworkImported(true);
+      showToast(result.message || `Imported ${result.imported} connections`, "success");
+    } catch {
+      showToast("LinkedIn import failed. Try again in a moment.", "warn");
+    } finally {
+      setLinkedinBusy(false);
+    }
+  };
+
+  const handleGithubSync = async () => {
+    const username = githubUsername.trim();
+    if (!username) return;
+    setGithubBusy(true);
+    try {
+      const result = await apiSyncGithubNetwork(username);
+      saveNetworkImported();
+      setNetworkImported(true);
+      showToast(result.message || "GitHub network sync started", "success");
+    } catch {
+      showToast("GitHub sync failed. Check the username and try again.", "warn");
+    } finally {
+      setGithubBusy(false);
+    }
+  };
+
   return (
     <div className="page">
       <PageHead
@@ -421,6 +520,61 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
           </div>
           <div className="ss-save-row">
             <button className="btn btn-primary btn-sm" onClick={() => handleSave("Auto-apply rules")}>Save changes</button>
+          </div>
+        </SettingsSection>
+
+        <SettingsSection icon="referral" title="Connections" sub={networkImported ? "Network imported" : "unlock referral paths"}>
+          <div className="srow" style={{ flexDirection: "column", alignItems: "flex-start", gap: 8 }}>
+            <div className="sl">
+              <div className="k">Import LinkedIn connections</div>
+              <div className="d">
+                Import your LinkedIn connections to unlock referral paths. Aviram will identify people in your
+                network who work at companies you&apos;re targeting.
+              </div>
+              <div className="d">
+                Download your connections CSV from LinkedIn →{" "}
+                <a
+                  href="https://www.linkedin.com/mypreferences/d/download-my-data"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Settings → Data Privacy → Get a copy of your data → Connections
+                </a>
+              </div>
+            </div>
+            <label className="btn btn-ghost btn-sm" style={{ cursor: "pointer" }}>
+              {linkedinBusy ? "Importing…" : "Choose CSV file"}
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleLinkedInFile}
+                disabled={linkedinBusy}
+                style={{ display: "none" }}
+              />
+            </label>
+          </div>
+          <div className="srow" style={{ flexDirection: "column", alignItems: "flex-start", gap: 8, marginTop: 16 }}>
+            <div className="sl">
+              <div className="k">Connect GitHub</div>
+              <div className="d">Connect GitHub to find colleagues who may work at target companies.</div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                className="sv-input"
+                placeholder="GitHub username"
+                value={githubUsername}
+                onChange={(e) => setGithubUsername(e.target.value)}
+                aria-label="GitHub username"
+              />
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={handleGithubSync}
+                disabled={githubBusy || !githubUsername.trim()}
+              >
+                {githubBusy ? "Syncing…" : "Connect"}
+              </button>
+            </div>
           </div>
         </SettingsSection>
 

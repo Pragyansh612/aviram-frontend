@@ -12,6 +12,8 @@ import type {
   ComputeIPSResponse,
   InterviewSession,
   JobDetail,
+  LinkedInConnectionItem,
+  NetworkImportResult,
   PathDetectionResponse,
   PlatformCredential,
   PreferencesResponse,
@@ -166,6 +168,30 @@ export async function apiComputeIPS(job_id: string, was_referred = false): Promi
 
 export async function apiGetReferralPaths(jobId: string): Promise<PathDetectionResponse> {
   return apiFetch<PathDetectionResponse>(`/referral/paths/${jobId}`);
+}
+
+export async function apiImportLinkedInConnections(
+  connections: LinkedInConnectionItem[],
+): Promise<NetworkImportResult> {
+  return apiFetch<NetworkImportResult>("/referral/network/linkedin", {
+    method: "POST",
+    body: JSON.stringify({ connections }),
+  });
+}
+
+export async function apiSyncGithubNetwork(
+  githubUsername: string,
+  githubToken?: string,
+  maxConnections = 100,
+): Promise<NetworkImportResult> {
+  return apiFetch<NetworkImportResult>("/referral/network/github", {
+    method: "POST",
+    body: JSON.stringify({
+      github_username: githubUsername,
+      github_token: githubToken || undefined,
+      max_connections: maxConnections,
+    }),
+  });
 }
 
 export async function apiGetActiveResume(): Promise<ActiveResume> {

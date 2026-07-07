@@ -17,6 +17,8 @@ const mockApiDeleteCredential = jest.fn(() => Promise.resolve());
 const mockApiGetProfile = jest.fn(() => Promise.resolve(null));
 const mockApiGetPreferences = jest.fn(() => Promise.resolve(null));
 const mockApiGetAgentSettings = jest.fn(() => Promise.resolve(null));
+const mockApiImportLinkedInConnections = jest.fn(() => Promise.resolve({ imported: 0, updated: 0, skipped: 0, total: 0, message: "" }));
+const mockApiSyncGithubNetwork = jest.fn(() => Promise.resolve({ imported: 0, updated: 0, skipped: 0, total: 0, message: "" }));
 
 jest.mock("@/lib/api", () => ({
   apiUpdateProfile: (...args: unknown[]) => mockApiUpdateProfile(...args),
@@ -28,6 +30,8 @@ jest.mock("@/lib/api", () => ({
   apiGetProfile: (...args: unknown[]) => mockApiGetProfile(...args),
   apiGetPreferences: (...args: unknown[]) => mockApiGetPreferences(...args),
   apiGetAgentSettings: (...args: unknown[]) => mockApiGetAgentSettings(...args),
+  apiImportLinkedInConnections: (...args: unknown[]) => mockApiImportLinkedInConnections(...args),
+  apiSyncGithubNetwork: (...args: unknown[]) => mockApiSyncGithubNetwork(...args),
 }));
 
 // ── Toast mock ────────────────────────────────────────────────────────────────
@@ -49,6 +53,8 @@ jest.mock("@/components/dashboard/session", () => ({
   getCalibrationCount: jest.fn(() => 14),
   getBriefVariant: jest.fn(() => "letter"),
   saveBriefVariant: jest.fn(),
+  getNetworkImported: jest.fn(() => false),
+  saveNetworkImported: jest.fn(),
 }));
 
 // ── Icons mock ────────────────────────────────────────────────────────────────

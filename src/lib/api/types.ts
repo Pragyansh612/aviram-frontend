@@ -112,6 +112,23 @@ export type AnalyticsSummary = {
   applications_this_week?: number;
 };
 
+export type LinkedInConnectionItem = {
+  first_name: string;
+  last_name?: string;
+  email?: string | null;
+  company?: string | null;
+  position?: string | null;
+  connected_on?: string | null;
+};
+
+export type NetworkImportResult = {
+  imported: number;
+  updated: number;
+  skipped: number;
+  total: number;
+  message: string;
+};
+
 export type ReferralRequest = {
   id: string;
   status: string;

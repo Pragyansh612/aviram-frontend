@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { OPPS, ACTIVITY_RANGES } from "@/components/dashboard/data";
 import { IPSChip, Urgent, EmptyState } from "@/components/dashboard/shared";
-import { getLastSyncAgo } from "@/components/dashboard/session";
+import { getLastSyncAgo, getNetworkImported } from "@/components/dashboard/session";
 import { useDashboard } from "@/contexts/DashboardContext";
 import { Icon } from "@/components/dashboard/icons";
 import { requestOpenPrepBrief, requestOpenApplication, requestHighlightOutreachDraft } from "@/components/dashboard/session";
@@ -13,6 +13,24 @@ type RangeKey = "24h" | "7d" | "30d";
 const arrIcon: React.CSSProperties = { width: 14, height: 14, display: "inline-block" };
 
 type ActionType = "interview" | "referral" | "manual" | "insight";
+
+const CONNECT_NETWORK_ACTION: {
+  type: ActionType;
+  kicker: string;
+  title: string;
+  meta: string;
+  btn: string;
+  to: PageId;
+  primary: boolean;
+} = {
+  type: "referral",
+  kicker: "Unlock referral paths",
+  title: "Import LinkedIn connections",
+  meta: "Aviram will match your network against companies you're targeting",
+  btn: "Connect",
+  to: "settings",
+  primary: false,
+};
 
 const ACTION_ITEMS: {
   type: ActionType;
@@ -110,6 +128,7 @@ export default function CommandCenter({ goTo, openOpp }: {
   const [range, setRange] = useState<RangeKey>("24h");
   const [dropOpen, setDropOpen] = useState(false);
   const [updatedAgo, setUpdatedAgo] = useState("just now");
+  const [networkImported, setNetworkImported] = useState(true);
 
   useEffect(() => {
     setUpdatedAgo(getLastSyncAgo());
@@ -117,8 +136,13 @@ export default function CommandCenter({ goTo, openOpp }: {
     return () => clearInterval(t);
   }, []);
 
+  useEffect(() => {
+    setNetworkImported(getNetworkImported());
+  }, []);
+
   const feed = [...opportunities].filter((o) => !o.skipped).sort((a, b) => b.ips - a.ips).slice(0, 15);
-  const actions = apiLive ? deriveLiveActions(applications) : ACTION_ITEMS.slice(0, 7);
+  const baseActions = apiLive ? deriveLiveActions(applications) : ACTION_ITEMS.slice(0, 7);
+  const actions = networkImported ? baseActions : [...baseActions, CONNECT_NETWORK_ACTION].slice(0, 7);
   const activity = apiLive
     ? {
         discovered: briefStats.discovered,
