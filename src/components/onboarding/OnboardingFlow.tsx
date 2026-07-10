@@ -30,10 +30,13 @@ import {
   apiUpdateAgentSettings,
   apiUploadResume,
   apiCompleteOnboarding,
+  apiImportLinkedInConnections,
+  apiSyncGithubNetwork,
 } from "@/lib/api";
+import type { LinkedInConnectionItem } from "@/lib/api";
 import { getUserEmail } from "@/lib/api/tokens";
 
-const STEPS = ["profile", "resume", "preferences", "rules", "archetype", "calibration"] as const;
+const STEPS = ["profile", "resume", "preferences", "rules", "connections", "archetype", "calibration"] as const;
 type Step = (typeof STEPS)[number];
 
 const STEP_LABEL: Record<Step, string> = {
@@ -41,9 +44,49 @@ const STEP_LABEL: Record<Step, string> = {
   resume: "Resume",
   preferences: "Preferences",
   rules: "Auto-apply",
+  connections: "Connections",
   archetype: "Archetype",
   calibration: "Calibration",
 };
+
+// ── LinkedIn CSV helpers ──────────────────────────────────────────────────────
+
+function splitCsvLine(line: string): string[] {
+  const out: string[] = [];
+  let cur = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]!;
+    if (ch === '"') { inQuotes = !inQuotes; continue; }
+    if (ch === "," && !inQuotes) { out.push(cur); cur = ""; continue; }
+    cur += ch;
+  }
+  out.push(cur);
+  return out;
+}
+
+function parseLinkedInConnectionsCsv(text: string): LinkedInConnectionItem[] {
+  const lines = text.split(/\r\n|\n/).filter((l) => l.trim().length > 0);
+  const headerIdx = lines.findIndex((l) => l.trim().startsWith("First Name,"));
+  if (headerIdx === -1) return [];
+  const header = splitCsvLine(lines[headerIdx]).map((h) => h.trim().toLowerCase());
+  const col = (name: string) => header.indexOf(name);
+  const out: LinkedInConnectionItem[] = [];
+  for (const line of lines.slice(headerIdx + 1)) {
+    const cols = splitCsvLine(line);
+    const first_name = (cols[col("first name")] || "").trim();
+    if (!first_name) continue;
+    out.push({
+      first_name,
+      last_name: (cols[col("last name")] || "").trim(),
+      email: col("email address") >= 0 ? (cols[col("email address")] || "").trim() || null : null,
+      company: col("company") >= 0 ? (cols[col("company")] || "").trim() || null : null,
+      position: col("position") >= 0 ? (cols[col("position")] || "").trim() || null : null,
+      connected_on: col("connected on") >= 0 ? (cols[col("connected on")] || "").trim() || null : null,
+    });
+  }
+  return out;
+}
 
 const emptyProfile: StoredProfile = {
   name: "",
@@ -68,6 +111,14 @@ export default function OnboardingFlow() {
     blockedCompanies: "",
     qualityMinimum: "High",
   });
+
+  // ── Connections step state ────────────────────────────────────────────────
+  const linkedinFileRef = useRef<HTMLInputElement>(null);
+  const [linkedinImported, setLinkedinImported] = useState(false);
+  const [linkedinBusy, setLinkedinBusy] = useState(false);
+  const [githubUsername, setGithubUsername] = useState("");
+  const [githubDone, setGithubDone] = useState(false);
+  const [githubBusy, setGithubBusy] = useState(false);
 
   useEffect(() => {
     const stored = getStoredProfile();
@@ -161,6 +212,38 @@ export default function OnboardingFlow() {
 
   const handleResumePick = () => {
     resumeInputRef.current?.click();
+  };
+
+  const handleLinkedInFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setLinkedinBusy(true);
+    try {
+      const text = await file.text();
+      const connections = parseLinkedInConnectionsCsv(text);
+      if (connections.length === 0) return;
+      await apiImportLinkedInConnections(connections);
+      setLinkedinImported(true);
+    } catch {
+      // non-fatal — user can retry in Settings
+    } finally {
+      setLinkedinBusy(false);
+    }
+  };
+
+  const handleGithubSync = async () => {
+    const username = githubUsername.trim();
+    if (!username) return;
+    setGithubBusy(true);
+    try {
+      await apiSyncGithubNetwork(username);
+      setGithubDone(true);
+    } catch {
+      // non-fatal — user can retry in Settings
+    } finally {
+      setGithubBusy(false);
+    }
   };
 
   const handleResumeFile = async (file: File) => {
@@ -308,6 +391,71 @@ export default function OnboardingFlow() {
                 <span className="auth-label">Quality score minimum</span>
                 <input className="auth-input" required value={rules.qualityMinimum} onChange={(e) => setRules({ ...rules, qualityMinimum: e.target.value })} />
               </label>
+            </div>
+          </div>
+        )}
+
+        {step === "connections" && (
+          <div className="onboard-body">
+            <h1 className="onboard-title serif">Unlock referral intelligence</h1>
+            <p className="onboard-lede">
+              Aviram finds referral paths — LinkedIn connections, alumni, GitHub collaborators — at every company it applies to. Import your network now to activate this immediately. You can always do this later in Settings.
+            </p>
+            <div className="auth-form" style={{ gap: 24 }}>
+              {/* ── LinkedIn connections ── */}
+              <div className="conn-block">
+                <div className="conn-head">
+                  <span className="conn-label">LinkedIn connections</span>
+                  {linkedinImported && <span className="conn-badge">✓ Imported</span>}
+                </div>
+                <p className="conn-desc">
+                  Export your connections from LinkedIn: <b>Settings → Data privacy → Get a copy of your data → Connections</b>. Upload the CSV below.
+                </p>
+                <button
+                  type="button"
+                  className={"btn btn-quiet btn-sm" + (linkedinImported ? " btn-done" : "")}
+                  onClick={() => linkedinFileRef.current?.click()}
+                  disabled={linkedinBusy}
+                  style={{ marginTop: 8 }}
+                >
+                  {linkedinBusy ? "Importing…" : linkedinImported ? "Re-import CSV" : "Upload LinkedIn CSV"}
+                </button>
+                <input
+                  ref={linkedinFileRef}
+                  type="file"
+                  accept=".csv"
+                  hidden
+                  onChange={(e) => { void handleLinkedInFile(e); }}
+                />
+              </div>
+
+              {/* ── GitHub ── */}
+              <div className="conn-block">
+                <div className="conn-head">
+                  <span className="conn-label">GitHub network</span>
+                  {githubDone && <span className="conn-badge">✓ Synced</span>}
+                </div>
+                <p className="conn-desc">
+                  Aviram finds GitHub collaborators and contributors who work at target companies — a strong second-degree referral signal.
+                </p>
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <input
+                    className="auth-input"
+                    placeholder="your-github-username"
+                    value={githubUsername}
+                    onChange={(e) => setGithubUsername(e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-quiet btn-sm"
+                    onClick={() => { void handleGithubSync(); }}
+                    disabled={!githubUsername.trim() || githubBusy}
+                  >
+                    {githubBusy ? "Syncing…" : githubDone ? "Re-sync" : "Sync"}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
