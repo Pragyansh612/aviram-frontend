@@ -367,13 +367,14 @@ export function mapIpsJobToOpp(job: IPSJob, index: number): Opp {
 export function mapApplicationStatus(status: string): string {
   switch (status) {
     case "submitted": return "applied";
-    case "failed": return "rejected";
-    case "manual_required":
-    case "assisted":
-    case "quality_review":
-    case "referral_pending":
-    case "pending":
-      return "applied";
+    // "failed" must NOT map to "rejected" — "rejected" means recruiter rejection;
+    // "failed" means our automation could not submit (very different to the user).
+    case "failed": return "failed";
+    case "manual_required": return "manual_required";
+    case "assisted": return "manual_required";
+    case "quality_review": return "quality_review";
+    case "referral_pending": return "referral_pending";
+    case "pending": return "pending";
     default: return status;
   }
 }
@@ -381,13 +382,21 @@ export function mapApplicationStatus(status: string): string {
 export function mapApplicationLabel(status: string): string {
   switch (status) {
     case "submitted": return "Applied";
-    case "failed": return "Rejected";
-    case "manual_required": return "Manual Required";
-    case "assisted": return "Assisted";
+    // Clear distinction: automation failure vs. recruiter decision
+    case "failed": return "Apply Failed";
+    case "manual_required":
+    case "assisted": return "Manual Required";
     case "quality_review": return "Quality Review";
     case "referral_pending": return "Referral Pending";
-    case "pending": return "Pending";
-    default: return status;
+    case "pending": return "Queued";
+    // Recruiter outcomes
+    case "rejected": return "Rejected";
+    case "interview": return "Interview";
+    case "offer": return "Offer";
+    case "response": return "Response";
+    case "withdrawn": return "Withdrawn";
+    case "applied": return "Applied";
+    default: return status.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
   }
 }
 

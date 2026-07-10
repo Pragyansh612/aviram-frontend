@@ -36,12 +36,14 @@ const REMOTE_OPTIONS = [
 // Map each opp ID to its current application status (if any), derived from APPS data.
 // Uses company + role as the join key (matches the findOppForApp logic in Applications.tsx).
 function buildAppliedMap(
-  apps: typeof APPS,
+  apps: (typeof APPS)[number][] & { job_id?: string }[],
   opps: Opp[],
 ): Map<string, { status: string; statusLabel: string }> {
   const map = new Map<string, { status: string; statusLabel: string }>();
   for (const app of apps) {
+    // Prefer exact job_id match (live API) over fuzzy company+role (demo)
     const opp =
+      (app.job_id ? opps.find((o) => o.id === app.job_id) : undefined) ??
       opps.find((o) => o.company === app.company && o.role === app.role) ??
       opps.find((o) => o.company === app.company);
     if (opp && !map.has(opp.id)) {
@@ -53,12 +55,19 @@ function buildAppliedMap(
 
 // Labels shown on the opp row for each application status
 const APP_STATUS_LABELS: Record<string, string> = {
+  applied: "Applied",
+  submitted: "Applied",
   interview: "Interview",
   response: "Response",
-  applied: "Applied",
-  rejected: "Rejected",
   offer: "Offer",
+  rejected: "Rejected",
   withdrawn: "Withdrawn",
+  // Automation-specific statuses — distinct from recruiter outcomes
+  pending: "Queued",
+  failed: "Apply Failed",
+  manual_required: "Manual Required",
+  quality_review: "Quality Review",
+  referral_pending: "Referral Pending",
 };
 
 // Variant selected per opp for bulk apply

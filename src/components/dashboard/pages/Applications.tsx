@@ -37,8 +37,9 @@ const OUTCOME_API: Record<typeof OUTCOME_OPTIONS[number], string> = {
   "Withdrawn": "withdrawn",
 };
 
-function findOppForApp(app: AppRow, opps: Opp[]): Opp | undefined {
-  return opps.find((o) => o.company === app.company && o.role === app.role)
+function findOppForApp(app: AppRow & { job_id?: string }, opps: Opp[]): Opp | undefined {
+  return (app.job_id ? opps.find((o) => o.id === app.job_id) : undefined)
+    ?? opps.find((o) => o.company === app.company && o.role === app.role)
     ?? opps.find((o) => o.company === app.company);
 }
 
@@ -86,9 +87,11 @@ export default function Applications({ openOpp, expandAppId }: { openOpp?: (o: O
     setApps(apiLive ? sourceApps : mergeApps(sourceApps));
   }, [expandAppId, sourceApps, apiLive]);
 
+  const IN_PROGRESS_STATUSES = new Set(["applied", "pending", "failed", "manual_required", "quality_review", "referral_pending"]);
+
   const match = (a: AppRow) => {
     switch (tab) {
-      case "applied": return a.status === "applied";
+      case "applied": return IN_PROGRESS_STATUSES.has(a.status);
       case "response": return a.status === "response";
       case "interview": return a.status === "interview";
       case "closed": return ["rejected", "offer", "withdrawn"].includes(a.status);
@@ -96,10 +99,10 @@ export default function Applications({ openOpp, expandAppId }: { openOpp?: (o: O
     }
   };
 
-  const list = useMemo(() => apps.filter(match), [apps, tab]);
+  const list = useMemo(() => apps.filter(match), [apps, tab, IN_PROGRESS_STATUSES]);
   const counts = useMemo(() => ({
     all: apps.length,
-    applied: apps.filter((a) => a.status === "applied").length,
+    applied: apps.filter((a) => IN_PROGRESS_STATUSES.has(a.status)).length,
     response: apps.filter((a) => a.status === "response").length,
     interview: apps.filter((a) => a.status === "interview").length,
     closed: apps.filter((a) => ["rejected", "offer", "withdrawn"].includes(a.status)).length,

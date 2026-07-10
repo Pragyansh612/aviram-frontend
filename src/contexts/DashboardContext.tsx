@@ -32,6 +32,7 @@ import {
   apiApplyToJob,
   apiGetPersonalInsights,
   apiGetCareerRoi,
+  apiRecordOpportunityInteraction,
   mapIpsJobToOpp,
   mapTimelineEntry,
   mapApplicationStatus,
@@ -46,7 +47,8 @@ type TimelineEvent = Omit<ReturnType<typeof mapTimelineEntry>, "appId"> & {
   draftId?: string;
 };
 type TimelineGroup = { day: string; events: TimelineEvent[] };
-type AppRow = (typeof APPS)[number];
+// Extend the demo shape with live API fields that aren't in the demo data
+type AppRow = (typeof APPS)[number] & { job_id?: string };
 
 type DashboardState = {
   apiLive: boolean;
@@ -82,6 +84,7 @@ function mapApiApplication(
   const status = mapApplicationStatus(row.status);
   return {
     id: row.id,
+    job_id: row.job_id,   // preserve for accurate opp↔app linking in buildAppliedMap
     company: job?.company ?? tl?.company ?? "—",
     role: job?.role ?? tl?.job_title ?? "—",
     platform: row.platform,
@@ -211,8 +214,20 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
     try {
       const res = await apiApplyToJob(jobId);
+      // Backend returns HTTP 200 with success:false on non-fatal failures
+      // (unsupported platform, rate limit, quality review, etc.).
+      // We must surface these as failures, not silently show "queued".
+      const ok = res.success ?? true; // fall back to true only if field absent
+      if (ok) {
+        // Record in opportunity memory so the user's history stays accurate
+        try { await apiRecordOpportunityInteraction(jobId, "queued"); } catch { /* non-blocking */ }
+      }
       await refresh();
-      return { ok: true, message: res.message || "Application queued." };
+      return {
+        ok,
+        message: res.message || (ok ? "Application queued." : "Could not queue application."),
+        status: (res as Record<string, unknown>).status as string | undefined,
+      };
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Apply failed";
       return { ok: false, message: msg };

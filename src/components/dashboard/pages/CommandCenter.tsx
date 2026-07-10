@@ -1,11 +1,12 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { OPPS, ACTIVITY_RANGES } from "@/components/dashboard/data";
 import { IPSChip, Urgent, EmptyState } from "@/components/dashboard/shared";
 import { getLastSyncAgo, getNetworkImported } from "@/components/dashboard/session";
 import { useDashboard } from "@/contexts/DashboardContext";
 import { Icon } from "@/components/dashboard/icons";
 import { requestOpenPrepBrief, requestOpenApplication, requestHighlightOutreachDraft } from "@/components/dashboard/session";
+import { apiGetDashboardActions } from "@/lib/api";
 import type { PageId } from "@/components/dashboard/shared";
 
 type RangeKey = "24h" | "7d" | "30d";
@@ -80,7 +81,7 @@ const ACTION_ITEMS: {
 ];
 
 function deriveLiveActions(
-  apps: { status: string; company: string; role: string; id: string }[],
+  apps: { status: string; statusLabel: string; company: string; role: string; id: string }[],
 ): typeof ACTION_ITEMS {
   const out: typeof ACTION_ITEMS = [];
   for (const app of apps) {
@@ -114,6 +115,46 @@ function deriveLiveActions(
         to: "applications",
         primary: true,
       });
+    } else if (app.status === "failed") {
+      out.push({
+        type: "manual",
+        kicker: "Automation failed",
+        title: `${app.company} · ${app.role}`,
+        meta: "Agent couldn't submit — manual apply or retry needed",
+        btn: "Review",
+        to: "applications",
+        primary: false,
+      });
+    } else if (app.status === "manual_required") {
+      out.push({
+        type: "manual",
+        kicker: "Manual step required",
+        title: `${app.company} · ${app.role}`,
+        meta: "This application needs your input to proceed",
+        btn: "Complete",
+        to: "applications",
+        primary: true,
+      });
+    } else if (app.status === "quality_review") {
+      out.push({
+        type: "manual",
+        kicker: "Quality gate held",
+        title: `${app.company} · ${app.role}`,
+        meta: "Resume quality below threshold — review before sending",
+        btn: "Review",
+        to: "applications",
+        primary: false,
+      });
+    } else if (app.status === "referral_pending") {
+      out.push({
+        type: "referral",
+        kicker: "Referral path found",
+        title: `${app.company} · ${app.role}`,
+        meta: "Activate referral before cold applying for best results",
+        btn: "See Referral",
+        to: "outreach",
+        primary: false,
+      });
     }
     if (out.length >= 7) break;
   }
@@ -129,6 +170,7 @@ export default function CommandCenter({ goTo, openOpp }: {
   const [dropOpen, setDropOpen] = useState(false);
   const [updatedAgo, setUpdatedAgo] = useState("just now");
   const [networkImported, setNetworkImported] = useState(true);
+  const [backendActions, setBackendActions] = useState<typeof ACTION_ITEMS>([]);
 
   useEffect(() => {
     setUpdatedAgo(getLastSyncAgo());
@@ -140,8 +182,48 @@ export default function CommandCenter({ goTo, openOpp }: {
     setNetworkImported(getNetworkImported());
   }, []);
 
+  // Fetch real backend-driven action items (referral drafts, pending approvals, etc.)
+  const fetchBackendActions = useCallback(async () => {
+    if (!apiLive) return;
+    try {
+      const data = await apiGetDashboardActions(20);
+      // apiGetDashboardActions returns { actions: [...], total: number }
+      const rawActions = data?.actions ?? [];
+      const items: typeof ACTION_ITEMS = rawActions.map((a) => {
+        // Backend already sends fully-shaped action items; cast to our ActionType
+        const type: ActionType =
+          a.type === "referral" ? "referral" :
+          a.type === "interview" ? "interview" :
+          a.type === "insight" ? "insight" : "manual";
+        return {
+          type,
+          kicker: a.kicker,
+          title: a.title,
+          meta: a.meta,
+          btn: a.btn,
+          to: (a.to as PageId) || "applications",
+          primary: a.primary,
+        };
+      });
+      setBackendActions(items);
+    } catch {
+      // non-blocking — fall back to local derivation
+    }
+  }, [apiLive]);
+
+  useEffect(() => { fetchBackendActions(); }, [fetchBackendActions]);
+
   const feed = [...opportunities].filter((o) => !o.skipped).sort((a, b) => b.ips - a.ips).slice(0, 15);
-  const baseActions = apiLive ? deriveLiveActions(applications) : ACTION_ITEMS.slice(0, 7);
+  // Merge: backend actions first (most authoritative), then locally derived from app statuses,
+  // deduped by title so the same application doesn't appear twice.
+  const derivedActions = apiLive ? deriveLiveActions(applications) : ACTION_ITEMS.slice(0, 7);
+  const seenTitles = new Set<string>();
+  const merged: typeof ACTION_ITEMS = [];
+  for (const a of [...backendActions, ...derivedActions]) {
+    if (!seenTitles.has(a.title)) { seenTitles.add(a.title); merged.push(a); }
+    if (merged.length >= 7) break;
+  }
+  const baseActions = merged.length > 0 ? merged : (apiLive ? derivedActions : ACTION_ITEMS.slice(0, 7));
   const actions = networkImported ? baseActions : [...baseActions, CONNECT_NETWORK_ACTION].slice(0, 7);
   const activity = apiLive
     ? {
