@@ -7,7 +7,7 @@ import { addSkippedOpp, removeSkippedOpp, addSessionApps, addSessionTimelineEven
 import { showToast } from "@/components/dashboard/Toast";
 import BulkApplyPanel from "@/components/dashboard/BulkApplyPanel";
 import { useDashboard } from "@/contexts/DashboardContext";
-import { apiRecordOpportunityInteraction, apiGetPreferences } from "@/lib/api";
+import { apiRecordOpportunityInteraction, apiUnseeOpportunity, apiGetPreferences } from "@/lib/api";
 import type { Opp } from "@/components/dashboard/DetailPanel";
 import type { PreferencesResponse } from "@/lib/api/types";
 
@@ -283,6 +283,11 @@ export default function Opportunities({ openOpp, selectedId }: { openOpp: (o: Op
     setFading((prev) => { const n = new Set(prev); n.delete(undo.id); return n; });
     setSkipped((prev) => { const n = new Set(prev); n.delete(undo.id); return n; });
     removeSkippedOpp(undo.id);
+    // Reverse the persisted skip too — otherwise the backend still thinks
+    // this job was skipped even though the UI shows it back in the list.
+    if (apiLive) {
+      apiUnseeOpportunity(undo.id).catch(() => {});
+    }
     setUndo(null);
   };
 

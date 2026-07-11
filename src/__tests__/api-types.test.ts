@@ -76,12 +76,12 @@ describe("mapApplicationStatus", () => {
     expect(mapApplicationStatus("submitted")).toBe("applied");
   });
 
-  it("maps 'failed' to 'rejected'", () => {
-    expect(mapApplicationStatus("failed")).toBe("rejected");
+  it("keeps 'failed' as 'failed' — automation failure is distinct from a recruiter rejection", () => {
+    expect(mapApplicationStatus("failed")).toBe("failed");
   });
 
-  it("maps 'pending' to 'applied'", () => {
-    expect(mapApplicationStatus("pending")).toBe("applied");
+  it("keeps 'pending' as 'pending' — distinct from a submitted application", () => {
+    expect(mapApplicationStatus("pending")).toBe("pending");
   });
 
   it("passes through unknown statuses unchanged", () => {
@@ -96,8 +96,8 @@ describe("mapApplicationLabel", () => {
     expect(mapApplicationLabel("submitted")).toBe("Applied");
   });
 
-  it("returns 'Rejected' for failed", () => {
-    expect(mapApplicationLabel("failed")).toBe("Rejected");
+  it("returns 'Apply Failed' for failed — not 'Rejected', which means a recruiter decision", () => {
+    expect(mapApplicationLabel("failed")).toBe("Apply Failed");
   });
 
   it("returns 'Manual Required' for manual_required", () => {

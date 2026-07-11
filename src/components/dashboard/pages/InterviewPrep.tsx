@@ -23,7 +23,7 @@ function saveChecked(set: Set<string>) {
 
 export default function InterviewPrep({ openBrief = false }: { openBrief?: boolean }) {
   const { apiLive } = useDashboard();
-  const [upcoming, setUpcoming] = useState(PREP.upcoming);
+  const [upcoming, setUpcoming] = useState(apiLive ? [] : PREP.upcoming);
   const [view, setView] = useState<"list" | "brief">(openBrief ? "brief" : "list");
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [qbFilter, setQbFilter] = useState<string>("All");
@@ -31,10 +31,14 @@ export default function InterviewPrep({ openBrief = false }: { openBrief?: boole
   const b = PREP.brief;
 
   useEffect(() => {
-    if (!apiLive) return;
+    if (!apiLive) {
+      setUpcoming(PREP.upcoming);
+      return;
+    }
     apiListInterviewSessions()
       .then((sessions) => {
-        if (!sessions.length) return;
+        // Live and legitimately empty is a real state — always overwrite,
+        // never leave the mock initial value in place.
         setUpcoming(sessions.map((s, i) => ({
           id: s.id,
           company: s.company_name,
@@ -46,9 +50,9 @@ export default function InterviewPrep({ openBrief = false }: { openBrief?: boole
           progress: i === 0 ? 40 : 0,
           soon: i === 0,
         })));
-        setTaskPrep(sessions[0]?.id ?? "p1");
+        if (sessions.length) setTaskPrep(sessions[0]!.id);
       })
-      .catch(() => {});
+      .catch(() => setUpcoming([]));
   }, [apiLive]);
 
   useEffect(() => { setChecked(loadChecked()); }, []);

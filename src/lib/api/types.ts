@@ -258,6 +258,32 @@ export type ActiveResume = {
   version: number;
 };
 
+export type ExperimentVariant = {
+  id: string;
+  role_category: string;
+  variant_label: string;
+  hypothesis: string;
+  status: string;
+  weight: number;
+  cycle_number: number;
+  applications_count: number;
+  submitted_count: number;
+  positive_outcomes: number;
+  response_rate: number | null;
+};
+
+export type ExperimentInsight = {
+  id: string;
+  role_category: string;
+  headline: string;
+  detail: string | null;
+  multiplier: number | null;
+  sample_size: number;
+  insight_type: string;
+  champion_variant_label: string | null;
+  challenger_variant_label: string | null;
+};
+
 export type ApplicationDetail = {
   id: string;
   job_id: string;

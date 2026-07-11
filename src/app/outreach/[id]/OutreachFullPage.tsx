@@ -1,19 +1,49 @@
 "use client";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { OUTREACH } from "@/components/dashboard/data";
 import { Icon } from "@/components/dashboard/icons";
+import { apiGetOutreachCampaign } from "@/lib/api";
+import { mapApiCampaign, type CampaignRow } from "@/components/dashboard/pages/Outreach";
 
-type Campaign = (typeof OUTREACH.campaigns)[number];
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", fontFamily: "var(--sans, sans-serif)", background: "var(--cream, #F7F4EE)" }}>
+      <div style={{ textAlign: "center", color: "var(--ink-3, #6B6B6B)" }}>{children}</div>
+    </div>
+  );
+}
 
-export default function OutreachFullPage({ campaign }: { campaign: Campaign | null }) {
-  if (!campaign) {
+export default function OutreachFullPage({ campaignId }: { campaignId: string }) {
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [campaign, setCampaign] = useState<CampaignRow | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const raw = await apiGetOutreachCampaign(campaignId);
+        if (cancelled) return;
+        setCampaign(mapApiCampaign(raw, 0));
+      } catch {
+        if (!cancelled) setNotFound(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [campaignId]);
+
+  if (loading) {
+    return <Shell><p style={{ fontSize: 14 }}>Loading campaign…</p></Shell>;
+  }
+
+  if (notFound || !campaign) {
     return (
-      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", fontFamily: "var(--sans, sans-serif)", background: "var(--cream, #F7F4EE)" }}>
-        <div style={{ textAlign: "center" }}>
-          <p style={{ fontSize: 14, color: "var(--ink-3, #6B6B6B)" }}>Campaign not found.</p>
-          <Link href="/dashboard" style={{ color: "var(--accent, #234033)", fontSize: 13, marginTop: 12, display: "inline-block" }}>← Back to dashboard</Link>
-        </div>
-      </div>
+      <Shell>
+        <p style={{ fontSize: 14 }}>Campaign not found.</p>
+        <Link href="/dashboard" style={{ color: "var(--accent, #234033)", fontSize: 13, marginTop: 12, display: "inline-block" }}>← Back to dashboard</Link>
+      </Shell>
     );
   }
 
@@ -56,7 +86,7 @@ export default function OutreachFullPage({ campaign }: { campaign: Campaign | nu
         <div style={{ marginTop: 32 }}>
           <div style={{ fontSize: 11, fontFamily: "var(--mono, monospace)", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-4, #9A9488)", marginBottom: 14 }}>Notes</div>
           <div style={{ background: "var(--paper, #FCFAF5)", border: "1px solid var(--line, #E8E4DC)", borderRadius: 12, padding: "20px 24px", fontSize: 14, color: "var(--ink-2, #383530)", lineHeight: 1.7 }}>
-            {campaign.notes}
+            {campaign.notes || "No notes recorded for this campaign."}
           </div>
         </div>
       </div>

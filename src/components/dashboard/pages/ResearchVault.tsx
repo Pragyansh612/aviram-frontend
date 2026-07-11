@@ -1,14 +1,47 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { VAULT } from "@/components/dashboard/data";
 import { PageHead, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
+import { useDashboard } from "@/contexts/DashboardContext";
+import { apiListCompanyResearch } from "@/lib/api";
+import type { CompanyResearch } from "@/lib/api/types";
 import type { VaultEntry } from "@/components/dashboard/VaultPanel";
 
 type UrgencyFilter = "all" | "high" | "medium" | "low";
 type RateFilter = "all" | "high" | "mid" | "low";
 type ReferralFilter = "all" | "yes" | "no";
 type FundingFilter = "all" | "recent" | "stable";
+
+// CompanyResearch (the shared 24h scrape cache) has no urgency/response-rate/
+// referral signal — those live in separate services (urgency_service,
+// referral_service). Map only what's real; leave the rest at honest neutral
+// defaults rather than fabricating numbers.
+function mapResearchToVaultEntry(r: CompanyResearch, i: number): VaultEntry {
+  const hasData = Boolean(r.overview || r.tech_stack.length || r.culture_signals.length);
+  const kv: [string, string, string][] = [];
+  if (r.funding_stage || r.funding_amount) {
+    kv.push(["Funding", [r.funding_stage, r.funding_amount].filter(Boolean).join(" — "), ""]);
+  }
+  if (r.employee_count) kv.push(["Employee count", r.employee_count, ""]);
+  if (r.tech_stack.length) kv.push(["Tech stack", r.tech_stack.join(", "), ""]);
+  if (r.culture_signals.length) kv.push(["Culture signals", r.culture_signals.join(", "), ""]);
+  if (r.domain) kv.push(["Domain", r.domain, ""]);
+  kv.push(["Researched", r.researched_at ? new Date(r.researched_at).toLocaleDateString() : "—", ""]);
+
+  return {
+    id: `research-${r.company_name}-${i}`,
+    name: r.company_name,
+    tagline: r.overview ? r.overview.slice(0, 90) : (r.products ?? "No overview scraped yet"),
+    logo: r.company_name.charAt(0).toUpperCase(),
+    signal: hasData ? "medium" : "weak",
+    urgency: "medium" as const,
+    responseRate: 0,
+    hasReferral: false,
+    fundingRecent: false,
+    kv,
+  };
+}
 
 export default function ResearchVault({
   openVault,
@@ -17,13 +50,24 @@ export default function ResearchVault({
   openVault: (v: VaultEntry) => void;
   selectedId?: string | null;
 }) {
+  const { apiLive } = useDashboard();
   const [q, setQ] = useState("");
   const [urgency, setUrgency] = useState<UrgencyFilter>("all");
   const [rate, setRate] = useState<RateFilter>("all");
   const [referral, setReferral] = useState<ReferralFilter>("all");
   const [funding, setFunding] = useState<FundingFilter>("all");
+  const [vault, setVault] = useState<VaultEntry[] | null>(null);
 
-  const list = VAULT.filter((v) => {
+  useEffect(() => {
+    if (!apiLive) return;
+    apiListCompanyResearch()
+      .then((rows) => setVault(rows.map(mapResearchToVaultEntry)))
+      .catch(() => setVault([]));
+  }, [apiLive]);
+
+  const source = apiLive ? (vault ?? []) : VAULT;
+
+  const list = source.filter((v) => {
     if (!(v.name + " " + v.tagline).toLowerCase().includes(q.toLowerCase())) return false;
     if (urgency !== "all" && v.urgency !== urgency) return false;
     if (rate === "high" && v.responseRate < 15) return false;
@@ -71,7 +115,13 @@ export default function ResearchVault({
         ))}
       </div>
       {list.length === 0 ? (
-        <EmptyState>No dossiers match your search or filters.</EmptyState>
+        <EmptyState>
+          {apiLive && vault === null
+            ? "Loading dossiers…"
+            : apiLive && (vault ?? []).length === 0
+              ? "No company dossiers yet. Aviram researches a company automatically the first time you view its opportunity or book an interview there."
+              : "No dossiers match your search or filters."}
+        </EmptyState>
       ) : (
         <div className="vault-list">
           {list.map((v) => (

@@ -13,7 +13,7 @@ const arrIcon: React.CSSProperties = { width: 14, height: 14, display: "inline-b
 const STUB_MSG = "Connect to backend to send outreach.";
 
 type Draft = (typeof OUTREACH.drafts)[number];
-type CampaignRow = (typeof OUTREACH.campaigns)[number];
+export type CampaignRow = (typeof OUTREACH.campaigns)[number];
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -36,7 +36,7 @@ function mapReferralToDraft(r: ReferralRequest): Draft {
   };
 }
 
-function mapApiCampaign(c: Record<string, unknown>, i: number): CampaignRow {
+export function mapApiCampaign(c: Record<string, unknown>, i: number): CampaignRow {
   return {
     id: String(c.id ?? `c-api-${i}`),
     company: String(c.company_name ?? c.company ?? "—"),
@@ -57,18 +57,25 @@ export default function Outreach({ openCampaign, selectedId, highlightDraftId }:
   highlightDraftId?: string | null;
 }) {
   const { apiLive } = useDashboard();
-  const [drafts, setDrafts] = useState<Draft[]>(OUTREACH.drafts);
-  const [campaigns, setCampaigns] = useState<CampaignRow[]>(OUTREACH.campaigns);
+  const [drafts, setDrafts] = useState<Draft[]>(apiLive ? [] : OUTREACH.drafts);
+  const [campaigns, setCampaigns] = useState<CampaignRow[]>(apiLive ? [] : OUTREACH.campaigns);
   const [highlightDraft, setHighlightDraft] = useState<string | null>(highlightDraftId ?? null);
 
   useEffect(() => {
-    if (!apiLive) return;
+    if (!apiLive) {
+      setDrafts(OUTREACH.drafts);
+      setCampaigns(OUTREACH.campaigns);
+      return;
+    }
     Promise.all([
       apiListReferralRequests().catch(() => [] as ReferralRequest[]),
       apiListOutreachCampaigns().catch(() => [] as Array<Record<string, unknown>>),
     ]).then(([refs, camps]) => {
-      if (refs.length) setDrafts(refs.map(mapReferralToDraft));
-      if (camps.length) setCampaigns(camps.map(mapApiCampaign));
+      // Live and legitimately empty is a real state, not a signal to keep
+      // showing mock data — always overwrite, never leave the mock initial
+      // value in place.
+      setDrafts(refs.map(mapReferralToDraft));
+      setCampaigns(camps.map(mapApiCampaign));
     });
   }, [apiLive]);
 

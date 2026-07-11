@@ -3,7 +3,7 @@ import { useRef, useEffect, useState } from "react";
 import { INTEL } from "@/components/dashboard/data";
 import { CountUp, PageHead, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
-import { fetchCareerIntel } from "@/contexts/DashboardContext";
+import { fetchCareerIntel, useDashboard } from "@/contexts/DashboardContext";
 
 type IntelView = typeof INTEL;
 
@@ -66,16 +66,22 @@ function mapApiIntel(
 }
 
 export default function CareerIntelligence() {
+  const { apiLive } = useDashboard();
   const ref = useRef<HTMLDivElement>(null);
   const headlineRef = useRef<HTMLDivElement>(null);
   const [countUp, setCountUp] = useState(false);
-  const [intel, setIntel] = useState<IntelView>(INTEL);
+  const [intel, setIntel] = useState<IntelView>(apiLive ? { ...INTEL, hasData: false } : INTEL);
 
   useEffect(() => {
+    if (!apiLive) return;
     fetchCareerIntel().then((data) => {
-      if (data) setIntel(mapApiIntel(data.insights, data.roi));
+      // Always set state on the live path — including the null case (health
+      // check failed or the API calls threw) — so a transient backend issue
+      // shows an honest empty state instead of leaving the fabricated mock
+      // narrative on screen indefinitely.
+      setIntel(data ? mapApiIntel(data.insights, data.roi) : { ...INTEL, hasData: false });
     });
-  }, []);
+  }, [apiLive]);
 
   useEffect(() => {
     const el = ref.current; if (!el) return;

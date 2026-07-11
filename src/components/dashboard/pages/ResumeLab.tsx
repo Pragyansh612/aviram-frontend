@@ -5,7 +5,14 @@ import { PageHead, EmptyState } from "@/components/dashboard/shared";
 import { showToast } from "@/components/dashboard/Toast";
 import { Icon } from "@/components/dashboard/icons";
 import { useDashboard } from "@/contexts/DashboardContext";
-import { apiListResumes, apiUploadResume } from "@/lib/api";
+import {
+  apiListResumes,
+  apiUploadResume,
+  apiGetActiveResume,
+  apiGetExperimentInsights,
+  apiGetExperimentVariants,
+} from "@/lib/api";
+import type { ExperimentInsight, ExperimentVariant } from "@/lib/api/types";
 
 export default function ResumeLab() {
   const { apiLive } = useDashboard();
@@ -14,35 +21,57 @@ export default function ResumeLab() {
   const defaultVariant = variants.find(v => v.isDefault) ?? variants[0];
   const [active, setActive] = useState(defaultVariant?.id ?? "");
   const [compare, setCompare] = useState(false);
+  const [insights, setInsights] = useState<ExperimentInsight[] | null>(null);
+  const [expVariants, setExpVariants] = useState<ExperimentVariant[] | null>(null);
+
+  const loadResumes = () => {
+    Promise.all([
+      apiListResumes().catch(() => null),
+      apiGetActiveResume().catch(() => null),
+    ]).then(([data, activeResume]) => {
+      const rows = data?.resumes ?? [];
+      if (!rows.length) return;
+      const mapped = rows.map((r, i) => ({
+        id: String(r.id ?? `api-${i}`),
+        name: String(r.filename ?? r.name ?? `Resume ${i + 1}`),
+        isDefault: activeResume ? String(r.id) === String(activeResume.id) : i === 0,
+        apps: 0,
+        responses: 0,
+        interviews: 0,
+        responseRate: 14,
+        note: "Uploaded via API",
+        experienceYears: 5,
+        wordCount: 420,
+        skills: ["Python", "Go", "PostgreSQL"],
+        highlights: ["Uploaded via API"],
+      }));
+      setVariants(mapped);
+      const activeId = mapped.find((v) => v.isDefault)?.id ?? mapped[0]!.id;
+      setActive((cur) => mapped.some((v) => v.id === cur) ? cur : activeId);
+    });
+  };
 
   useEffect(() => {
     if (!apiLive) return;
-    apiListResumes()
-      .then((data) => {
-        const rows = data.resumes ?? [];
-        if (!rows.length) return;
-        setVariants((prev) => {
-          const mapped = rows.map((r, i) => ({
-            id: String(r.id ?? `api-${i}`),
-            name: String(r.filename ?? r.name ?? `Resume ${i + 1}`),
-            isDefault: i === 0,
-            apps: 0,
-            responses: 0,
-            interviews: 0,
-            responseRate: 14,
-            note: "Uploaded via API",
-            experienceYears: 5,
-            wordCount: 420,
-            skills: ["Python", "Go", "PostgreSQL"],
-            highlights: ["Uploaded via API"],
-          }));
-          if (!mapped.length) return prev;
-          setActive((cur) => mapped.some((v) => v.id === cur) ? cur : mapped[0]!.id);
-          return mapped;
-        });
-      })
-      .catch(() => {});
+    loadResumes();
+    apiGetExperimentInsights().then((d) => setInsights(d.insights)).catch(() => setInsights([]));
+    apiGetExperimentVariants().then((d) => setExpVariants(d.items)).catch(() => setExpVariants([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiLive]);
+
+  // One champion (or highest-weight active) variant label per role category —
+  // real data from the resume-experiment engine, replacing the RESUME.byCategory mock.
+  const byCategory = (() => {
+    if (!expVariants || expVariants.length === 0) return null;
+    const byCat = new Map<string, ExperimentVariant>();
+    for (const v of expVariants) {
+      const cur = byCat.get(v.role_category);
+      if (!cur) { byCat.set(v.role_category, v); continue; }
+      const score = (x: ExperimentVariant) => (x.status === "champion" ? 2 : x.status === "active" ? 1 : 0) * 1000 + x.weight;
+      if (score(v) > score(cur)) byCat.set(v.role_category, v);
+    }
+    return Array.from(byCat.entries()).map(([cat, v]) => ({ cat, variant: v.variant_label }));
+  })();
 
   const handleUpload = async (file: File) => {
     if (!apiLive) {
@@ -52,26 +81,7 @@ export default function ResumeLab() {
     try {
       const res = await apiUploadResume(file);
       showToast(`Uploaded ${res.filename}`, "success");
-      const data = await apiListResumes();
-      const rows = data.resumes ?? [];
-      if (rows.length) {
-        const mapped = rows.map((r, i) => ({
-          id: String(r.id ?? `api-${i}`),
-          name: String(r.filename ?? r.name ?? `Resume ${i + 1}`),
-          isDefault: i === 0,
-          apps: 0,
-          responses: 0,
-          interviews: 0,
-          responseRate: 14,
-          note: "Uploaded via API",
-          experienceYears: 5,
-          wordCount: 420,
-          skills: ["Python", "Go", "PostgreSQL"],
-          highlights: ["Uploaded via API"],
-        }));
-        setVariants(mapped);
-        setActive(mapped[0]!.id);
-      }
+      loadResumes();
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Upload failed", "warn");
     }
@@ -180,39 +190,78 @@ export default function ResumeLab() {
           ))}
           <div className="sec-label" style={{ marginTop: 26 }}>Active variant by role <span className="ln" /></div>
           <div className="card">
-            {RESUME.byCategory.map((c, i) => (
-              <div key={i} className="dp-kv" style={{ padding: "13px 18px", borderBottom: i < RESUME.byCategory.length - 1 ? "1px solid var(--line-soft)" : "none" }}>
-                <span className="k" style={{ fontSize: 13.5 }}>{c.cat}</span>
-                <span className="v" style={{ color: "var(--accent)" }}>Variant {c.variant}</span>
-              </div>
-            ))}
+            {apiLive ? (
+              !byCategory ? (
+                <EmptyState>No experiment variants yet. Aviram assigns variants as applications go out.</EmptyState>
+              ) : byCategory.map((c, i) => (
+                <div key={i} className="dp-kv" style={{ padding: "13px 18px", borderBottom: i < byCategory.length - 1 ? "1px solid var(--line-soft)" : "none" }}>
+                  <span className="k" style={{ fontSize: 13.5 }}>{c.cat}</span>
+                  <span className="v" style={{ color: "var(--accent)" }}>Variant {c.variant}</span>
+                </div>
+              ))
+            ) : (
+              RESUME.byCategory.map((c, i) => (
+                <div key={i} className="dp-kv" style={{ padding: "13px 18px", borderBottom: i < RESUME.byCategory.length - 1 ? "1px solid var(--line-soft)" : "none" }}>
+                  <span className="k" style={{ fontSize: 13.5 }}>{c.cat}</span>
+                  <span className="v" style={{ color: "var(--accent)" }}>Variant {c.variant}</span>
+                </div>
+              ))
+            )}
           </div>
         </div>
         <div>
           <div className="sec-label">Experiment engine <span className="ln" /></div>
-          <div className="exp-card">
-            <div className="ec-kick">Live A/B · statistically significant</div>
-            <div className="ec-stat">Variant {RESUME.experiment.winner} is outperforming Variant {RESUME.experiment.loser} by <b>{RESUME.experiment.lift}%</b> for {RESUME.experiment.category}.</div>
-            <div className="ec-meta">{RESUME.experiment.apps} applications tested · confidence: {RESUME.experiment.confidence}</div>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              style={{ marginTop: 2 }}
-              onClick={() => showToast(`Setting Variant ${RESUME.experiment.winner} as default will be available when connected to backend.`)}
-            >
-              Set {RESUME.experiment.winner} as default
-            </button>
-          </div>
-          <div className="sec-label" style={{ marginTop: 26 }}>Skills gap <span className="ln" /></div>
-          <div className="card card-pad">
-            <div style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 6 }}>Appearing in your queue, missing from your active resume:</div>
-            {RESUME.gaps.map((g, i) => (
-              <div className="gap-row" key={i}>
-                <span className="gk">{g.skill}</span>
-                <span className="gc">{g.appearances}</span>
+          {apiLive ? (
+            !insights || insights.length === 0 ? (
+              <div className="card card-pad">
+                <EmptyState>
+                  {insights === null
+                    ? "Loading experiment results…"
+                    : "No experiment results yet — Aviram needs more submitted applications per role category before a winner can be declared."}
+                </EmptyState>
               </div>
-            ))}
-          </div>
+            ) : (
+              <div className="exp-card">
+                <div className="ec-kick">Live A/B · {insights[0]!.insight_type === "winner" ? "statistically significant" : insights[0]!.insight_type.replace(/_/g, " ")}</div>
+                <div className="ec-stat">{insights[0]!.headline}</div>
+                <div className="ec-meta">
+                  {insights[0]!.sample_size} applications tested
+                  {insights[0]!.multiplier != null && ` · ${insights[0]!.multiplier.toFixed(1)}x`}
+                </div>
+                {insights[0]!.detail && <div className="ec-meta">{insights[0]!.detail}</div>}
+              </div>
+            )
+          ) : (
+            <div className="exp-card">
+              <div className="ec-kick">Live A/B · statistically significant</div>
+              <div className="ec-stat">Variant {RESUME.experiment.winner} is outperforming Variant {RESUME.experiment.loser} by <b>{RESUME.experiment.lift}%</b> for {RESUME.experiment.category}.</div>
+              <div className="ec-meta">{RESUME.experiment.apps} applications tested · confidence: {RESUME.experiment.confidence}</div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                style={{ marginTop: 2 }}
+                onClick={() => showToast(`Setting Variant ${RESUME.experiment.winner} as default will be available when connected to backend.`)}
+              >
+                Set {RESUME.experiment.winner} as default
+              </button>
+            </div>
+          )}
+          <div className="sec-label" style={{ marginTop: 26 }}>Skills gap <span className="ln" /></div>
+          {apiLive ? (
+            <div className="card card-pad">
+              <EmptyState>Skills-gap analysis against your live queue isn&apos;t available yet.</EmptyState>
+            </div>
+          ) : (
+            <div className="card card-pad">
+              <div style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 6 }}>Appearing in your queue, missing from your active resume:</div>
+              {RESUME.gaps.map((g, i) => (
+                <div className="gap-row" key={i}>
+                  <span className="gk">{g.skill}</span>
+                  <span className="gc">{g.appearances}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

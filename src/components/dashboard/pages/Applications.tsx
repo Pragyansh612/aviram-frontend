@@ -5,13 +5,32 @@ import { APPS, OPPS } from "@/components/dashboard/data";
 import { IPSChip, StatusPill, PageHead, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 import { useDashboard } from "@/contexts/DashboardContext";
-import { apiUpdateApplicationOutcome } from "@/lib/api";
+import { apiGetApplication, apiUpdateApplicationOutcome } from "@/lib/api";
+import type { ApplicationDetail } from "@/lib/api/types";
 import {
   getSessionApps,
   getAppOutcomeOverrides,
   setAppOutcomeOverride,
 } from "@/components/dashboard/session";
 import type { Opp } from "@/components/dashboard/DetailPanel";
+
+function detailToEvents(d: ApplicationDetail): { time: string; text: string }[] {
+  const events: { time: string; text: string }[] = [];
+  const fmt = (iso: string) => new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  if (d.applied_at) events.push({ time: fmt(d.applied_at), text: `Application submitted · ${d.platform}` });
+  if (d.interview_at) events.push({ time: fmt(d.interview_at), text: "Interview scheduled" });
+  if (d.outcome_at && d.outcome) events.push({ time: fmt(d.outcome_at), text: `Outcome recorded · ${d.outcome}` });
+  if (!d.applied_at && d.created_at) events.push({ time: fmt(d.created_at), text: `Application ${d.status}` });
+  return events;
+}
+
+function detailCoverLetter(d: ApplicationDetail): string | null {
+  const snap = d.form_snapshot as Record<string, unknown> | null;
+  if (!snap) return null;
+  const key = Object.keys(snap).find((k) => k.toLowerCase().replace(/[^a-z]/g, "").includes("coverletter"));
+  const value = key ? snap[key] : undefined;
+  return typeof value === "string" && value.trim() ? value : null;
+}
 
 const APP_TABS = [
   { id: "all", label: "All" }, { id: "applied", label: "In Progress" },
@@ -78,6 +97,8 @@ export default function Applications({ openOpp, expandAppId }: { openOpp?: (o: O
   const [outcomeFor, setOutcomeFor] = useState<string | null>(null);
   const [outcomeSaved, setOutcomeSaved] = useState<Record<string, string>>({});
   const [apps, setApps] = useState<AppRow[]>(() => (apiLive ? sourceApps : mergeApps(sourceApps)));
+  const [details, setDetails] = useState<Record<string, ApplicationDetail>>({});
+  const [detailLoading, setDetailLoading] = useState<string | null>(null);
 
   useEffect(() => {
     if (expandAppId) {
@@ -109,8 +130,16 @@ export default function Applications({ openOpp, expandAppId }: { openOpp?: (o: O
   }), [apps]);
 
   const toggle = (id: string) => {
-    setExpanded(expanded === id ? null : id);
+    const opening = expanded !== id;
+    setExpanded(opening ? id : null);
     setOutcomeFor(null);
+    if (opening && apiLive && !details[id]) {
+      setDetailLoading(id);
+      apiGetApplication(id)
+        .then((d) => setDetails((prev) => ({ ...prev, [id]: d })))
+        .catch(() => {})
+        .finally(() => setDetailLoading((cur) => (cur === id ? null : cur)));
+    }
   };
 
   const handleOutcome = async (appId: string, label: typeof OUTCOME_OPTIONS[number]) => {
@@ -176,20 +205,49 @@ export default function Applications({ openOpp, expandAppId }: { openOpp?: (o: O
                 <span className="ar-ips"><IPSChip score={a.ips} /></span>
                 <span className="ar-date">{a.date}</span>
               </div>
-              {isOpen && (
+              {isOpen && (() => {
+                const detail = details[a.id];
+                const loadingDetail = apiLive && detailLoading === a.id;
+                const cover = apiLive
+                  ? (detail ? detailCoverLetter(detail) : null)
+                  : a.coverLetter;
+                const events = apiLive
+                  ? (detail ? detailToEvents(detail) : [])
+                  : a.events;
+                return (
                 <div className="apps-expand">
                   <div className="ae-col">
                     <div className="ae-label">Cover letter generated</div>
-                    <p className="ae-cover">{a.coverLetter}</p>
+                    {loadingDetail ? (
+                      <p className="ae-cover">Loading…</p>
+                    ) : cover ? (
+                      <p className="ae-cover">{cover}</p>
+                    ) : (
+                      <p className="ae-cover" style={{ color: "var(--ink-4)" }}>
+                        {apiLive ? "No cover letter recorded for this application." : ""}
+                      </p>
+                    )}
+                    {apiLive && detail?.failure_reason && (
+                      <p className="ae-cover" style={{ color: "var(--clay)", marginTop: 8 }}>
+                        {detail.failure_reason}
+                      </p>
+                    )}
                   </div>
                   <div className="ae-col">
                     <div className="ae-label">Resume version</div>
                     <p className="ae-meta">Variant {a.variant} · IPS {a.ips} at submission · {a.platform}</p>
+                    {apiLive && detail?.quality_gate_score != null && (
+                      <p className="ae-meta">Quality gate: {Math.round(detail.quality_gate_score * 100)}% · {detail.quality_gate_status}</p>
+                    )}
                   </div>
                   <div className="ae-col">
                     <div className="ae-label">Application timeline</div>
                     <ul className="ae-events">
-                      {a.events.map((ev, i) => (
+                      {loadingDetail ? (
+                        <li>Loading…</li>
+                      ) : events.length === 0 ? (
+                        <li>No events recorded.</li>
+                      ) : events.map((ev, i) => (
                         <li key={i}><span className="ae-time">{ev.time}</span>{ev.text}</li>
                       ))}
                     </ul>
@@ -228,7 +286,8 @@ export default function Applications({ openOpp, expandAppId }: { openOpp?: (o: O
                     )}
                   </div>
                 </div>
-              )}
+                );
+              })()}
             </div>
           );
         })}

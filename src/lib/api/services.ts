@@ -13,6 +13,8 @@ import type {
   InterviewSession,
   JobDetail,
   ConnectionsBySource,
+  ExperimentInsight,
+  ExperimentVariant,
   LinkedInConnectionItem,
   NetworkImportResult,
   NetworkProfile,
@@ -205,6 +207,19 @@ export async function apiGetConnectionsBySource(): Promise<ConnectionsBySource> 
   return apiFetch<ConnectionsBySource>("/referral/connections?limit=1");
 }
 
+export async function apiGetExperimentInsights(): Promise<{ insights: ExperimentInsight[]; summary: string | null }> {
+  return apiFetch<{ insights: ExperimentInsight[]; summary: string | null }>("/resume-experiments/insights");
+}
+
+export async function apiGetExperimentVariants(roleCategory?: string): Promise<{ items: ExperimentVariant[] }> {
+  const q = roleCategory ? `?role_category=${encodeURIComponent(roleCategory)}` : "";
+  return apiFetch<{ items: ExperimentVariant[] }>(`/resume-experiments/variants${q}`);
+}
+
+export async function apiListCompanyResearch(limit = 100): Promise<CompanyResearch[]> {
+  return apiFetch<CompanyResearch[]>(`/companies/research?limit=${limit}`);
+}
+
 export async function apiGetActiveResume(): Promise<ActiveResume> {
   return apiFetch<ActiveResume>("/resumes/active");
 }
@@ -301,6 +316,10 @@ export async function apiListOutreachCampaigns(): Promise<Array<Record<string, u
   return Array.isArray(data) ? data : (data.campaigns ?? []);
 }
 
+export async function apiGetOutreachCampaign(campaignId: string): Promise<Record<string, unknown>> {
+  return apiFetch(`/outreach/campaigns/${encodeURIComponent(campaignId)}`);
+}
+
 // ── Career intelligence ───────────────────────────────────────────────────────
 
 export async function apiGetPersonalInsights(): Promise<Record<string, unknown>> {
@@ -344,6 +363,15 @@ export async function apiRecordOpportunityInteraction(
   await apiFetch("/opportunity-memory/record", {
     method: "POST",
     body: JSON.stringify({ job_id, action, skip_reason }),
+  });
+}
+
+// The "unsee" undo affordance — reverses a skip (or any other recorded
+// interaction) recorded within the last few seconds, so an Undo click
+// doesn't leave the backend thinking the job was skipped.
+export async function apiUnseeOpportunity(job_id: string): Promise<void> {
+  await apiFetch(`/opportunity-memory/${encodeURIComponent(job_id)}`, {
+    method: "DELETE",
   });
 }
 
