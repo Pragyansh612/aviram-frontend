@@ -2,11 +2,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { OPPS, ACTIVITY_RANGES } from "@/components/dashboard/data";
 import { IPSChip, Urgent, EmptyState } from "@/components/dashboard/shared";
-import { getLastSyncAgo, getNetworkImported } from "@/components/dashboard/session";
+import { getLastSyncAgo, getNetworkImported, saveNetworkImported } from "@/components/dashboard/session";
 import { useDashboard } from "@/contexts/DashboardContext";
 import { Icon } from "@/components/dashboard/icons";
 import { requestOpenPrepBrief, requestOpenApplication, requestHighlightOutreachDraft } from "@/components/dashboard/session";
-import { apiGetDashboardActions } from "@/lib/api";
+import { apiGetDashboardActions, apiGetProfile, apiUpdateProfile } from "@/lib/api";
 import type { PageId } from "@/components/dashboard/shared";
 
 type RangeKey = "24h" | "7d" | "30d";
@@ -179,8 +179,16 @@ export default function CommandCenter({ goTo, openOpp }: {
   }, []);
 
   useEffect(() => {
-    setNetworkImported(getNetworkImported());
-  }, []);
+    if (!apiLive) {
+      setNetworkImported(getNetworkImported());
+      return;
+    }
+    // Server-side flag is the source of truth across browsers/devices —
+    // local flag is only a fallback for demo/offline mode.
+    apiGetProfile()
+      .then((p) => setNetworkImported(Boolean(p.connections_prompted) || getNetworkImported()))
+      .catch(() => setNetworkImported(getNetworkImported()));
+  }, [apiLive]);
 
   // Fetch real backend-driven action items (referral drafts, pending approvals, etc.)
   const fetchBackendActions = useCallback(async () => {
@@ -252,6 +260,11 @@ export default function CommandCenter({ goTo, openOpp }: {
     if (a.to === "applications" && (a.btn === "Respond" || a.btn === "View")) {
       const match = applications.find((app) => `${app.company} · ${app.role}` === a.title);
       if (match) requestOpenApplication(match.id);
+    }
+    if (a.title === CONNECT_NETWORK_ACTION.title && a.kicker === CONNECT_NETWORK_ACTION.kicker) {
+      setNetworkImported(true);
+      saveNetworkImported();
+      if (apiLive) apiUpdateProfile({ connections_prompted: true }).catch(() => {});
     }
     goTo(a.to);
   };

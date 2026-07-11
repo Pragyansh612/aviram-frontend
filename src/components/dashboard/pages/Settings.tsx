@@ -26,6 +26,8 @@ import {
   apiGetAgentSettings,
   apiImportLinkedInConnections,
   apiSyncGithubNetwork,
+  apiGetNetworkProfile,
+  apiGetConnectionsBySource,
 } from "@/lib/api";
 import type { LinkedInConnectionItem } from "@/lib/api";
 import { PageHead } from "@/components/dashboard/shared";
@@ -74,6 +76,7 @@ function parseLinkedInConnectionsCsv(text: string): LinkedInConnectionItem[] {
   const col = (name: string) => header.indexOf(name);
   const iFirst = col("first name");
   const iLast = col("last name");
+  const iUrl = col("url");
   const iEmail = col("email address");
   const iCompany = col("company");
   const iPosition = col("position");
@@ -86,6 +89,7 @@ function parseLinkedInConnectionsCsv(text: string): LinkedInConnectionItem[] {
     out.push({
       first_name,
       last_name: (cols[iLast] || "").trim(),
+      linkedin_url: iUrl >= 0 ? (cols[iUrl] || "").trim() || null : null,
       email: iEmail >= 0 ? (cols[iEmail] || "").trim() || null : null,
       company: iCompany >= 0 ? (cols[iCompany] || "").trim() || null : null,
       position: iPosition >= 0 ? (cols[iPosition] || "").trim() || null : null,
@@ -205,6 +209,27 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
   const [linkedinBusy, setLinkedinBusy] = useState(false);
   const [githubUsername, setGithubUsername] = useState("");
   const [githubBusy, setGithubBusy] = useState(false);
+  const [networkStatus, setNetworkStatus] = useState<{
+    linkedinAt: string | null;
+    linkedinCount: number;
+    githubAt: string | null;
+    githubCount: number;
+  } | null>(null);
+
+  const refreshNetworkStatus = () => {
+    if (!apiLive) return;
+    Promise.all([
+      apiGetNetworkProfile().catch(() => null),
+      apiGetConnectionsBySource().catch(() => null),
+    ]).then(([np, conns]) => {
+      setNetworkStatus({
+        linkedinAt: np?.linkedin_imported_at ?? null,
+        linkedinCount: conns?.by_source?.linkedin ?? 0,
+        githubAt: np?.github_synced_at ?? null,
+        githubCount: conns?.by_source?.github ?? 0,
+      });
+    });
+  };
 
   const [profile, setProfile] = useState(() => {
     const stored = getStoredProfile();
@@ -263,6 +288,11 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    refreshNetworkStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiLive]);
 
   useEffect(() => {
     if (!apiLive) return;
@@ -413,6 +443,7 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
       const result = await apiImportLinkedInConnections(connections);
       saveNetworkImported();
       setNetworkImported(true);
+      refreshNetworkStatus();
       showToast(result.message || `Imported ${result.imported} connections`, "success");
     } catch {
       showToast("LinkedIn import failed. Try again in a moment.", "warn");
@@ -429,6 +460,7 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
       const result = await apiSyncGithubNetwork(username);
       saveNetworkImported();
       setNetworkImported(true);
+      refreshNetworkStatus();
       showToast(result.message || "GitHub network sync started", "success");
     } catch {
       showToast("GitHub sync failed. Check the username and try again.", "warn");
@@ -552,6 +584,12 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
                 style={{ display: "none" }}
               />
             </label>
+            {networkStatus?.linkedinAt && (
+              <div className="d" style={{ color: "var(--ink-4)" }}>
+                Last imported: {networkStatus.linkedinCount} connection{networkStatus.linkedinCount === 1 ? "" : "s"} on{" "}
+                {new Date(networkStatus.linkedinAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+              </div>
+            )}
           </div>
           <div className="srow" style={{ flexDirection: "column", alignItems: "flex-start", gap: 8, marginTop: 16 }}>
             <div className="sl">
@@ -575,6 +613,12 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
                 {githubBusy ? "Syncing…" : "Connect"}
               </button>
             </div>
+            {networkStatus?.githubAt && (
+              <div className="d" style={{ color: "var(--ink-4)" }}>
+                Last synced: {networkStatus.githubCount} connection{networkStatus.githubCount === 1 ? "" : "s"} on{" "}
+                {new Date(networkStatus.githubAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+              </div>
+            )}
           </div>
         </SettingsSection>
 

@@ -79,6 +79,7 @@ function parseLinkedInConnectionsCsv(text: string): LinkedInConnectionItem[] {
     out.push({
       first_name,
       last_name: (cols[col("last name")] || "").trim(),
+      linkedin_url: col("url") >= 0 ? (cols[col("url")] || "").trim() || null : null,
       email: col("email address") >= 0 ? (cols[col("email address")] || "").trim() || null : null,
       company: col("company") >= 0 ? (cols[col("company")] || "").trim() || null : null,
       position: col("position") >= 0 ? (cols[col("position")] || "").trim() || null : null,

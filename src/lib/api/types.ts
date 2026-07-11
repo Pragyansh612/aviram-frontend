@@ -20,6 +20,7 @@ export type ProfileResponse = {
   github_url: string | null;
   website_url: string | null;
   bio: string | null;
+  connections_prompted?: boolean;
   onboarding_completed: boolean;
   onboarding_completed_at: string | null;
 };
@@ -115,6 +116,7 @@ export type AnalyticsSummary = {
 export type LinkedInConnectionItem = {
   first_name: string;
   last_name?: string;
+  linkedin_url?: string | null;
   email?: string | null;
   company?: string | null;
   position?: string | null;
@@ -127,6 +129,19 @@ export type NetworkImportResult = {
   skipped: number;
   total: number;
   message: string;
+};
+
+export type NetworkProfile = {
+  user_id: string;
+  github_username: string | null;
+  linkedin_imported_at: string | null;
+  github_synced_at: string | null;
+};
+
+export type ConnectionsBySource = {
+  connections: unknown[];
+  total: number;
+  by_source: Record<string, number>;
 };
 
 export type ReferralRequest = {

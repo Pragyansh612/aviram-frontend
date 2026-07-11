@@ -12,8 +12,10 @@ import type {
   ComputeIPSResponse,
   InterviewSession,
   JobDetail,
+  ConnectionsBySource,
   LinkedInConnectionItem,
   NetworkImportResult,
+  NetworkProfile,
   PathDetectionResponse,
   PlatformCredential,
   PreferencesResponse,
@@ -69,6 +71,7 @@ export async function apiUpdateProfile(body: Partial<ProfileResponse>): Promise<
       github_url: body.github_url,
       website_url: body.website_url,
       bio: body.bio,
+      connections_prompted: body.connections_prompted,
     }),
   });
 }
@@ -192,6 +195,14 @@ export async function apiSyncGithubNetwork(
       max_connections: maxConnections,
     }),
   });
+}
+
+export async function apiGetNetworkProfile(): Promise<NetworkProfile> {
+  return apiFetch<NetworkProfile>("/referral/profile");
+}
+
+export async function apiGetConnectionsBySource(): Promise<ConnectionsBySource> {
+  return apiFetch<ConnectionsBySource>("/referral/connections?limit=1");
 }
 
 export async function apiGetActiveResume(): Promise<ActiveResume> {

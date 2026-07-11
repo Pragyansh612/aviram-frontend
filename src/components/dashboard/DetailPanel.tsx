@@ -57,6 +57,9 @@ export default function DetailPanel({ opp, onClose }: { opp: Opp; onClose: () =>
           <div className="dh-l">
             <div className="dh-role">{opp.role}</div>
             <div className="dh-sub">{opp.company} · {opp.stage} · {opp.location}</div>
+            {opp.userHistoryDisplay && (
+              <div className="or-history" style={{ marginTop: 4 }}>{opp.userHistoryDisplay}</div>
+            )}
           </div>
           <IPSChip score={opp.ips} size="lg" solid />
           <button className="dp-close" onClick={onClose} aria-label="Close panel">
