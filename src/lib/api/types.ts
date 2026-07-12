@@ -322,6 +322,8 @@ export type CompanyResearch = {
   recent_news: Array<Record<string, unknown>>;
   sources: string[];
   researched_at: string | null;
+  response_rate: number | null;
+  application_count: number | null;
 };
 
 export type PlatformCredential = {

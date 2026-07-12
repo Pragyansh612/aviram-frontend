@@ -32,7 +32,9 @@ import {
   apiApplyToJob,
   apiGetPersonalInsights,
   apiGetCareerRoi,
+  apiGetPersonalModelSegments,
   apiRecordOpportunityInteraction,
+  apiGetDashboardBrief,
   mapIpsJobToOpp,
   mapTimelineEntry,
   mapApplicationStatus,
@@ -135,6 +137,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         summary,
         profile,
         calibration,
+        brief,
       ] = await Promise.all([
         apiGetApplyQueue(50).catch(() => null),
         apiGetAgentStatus().catch(() => null),
@@ -143,6 +146,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         apiGetAnalyticsSummary().catch(() => null),
         apiGetProfile().catch(() => null),
         apiGetCalibration().catch(() => null),
+        apiGetDashboardBrief().catch(() => null),
       ]);
 
       const opps = queue?.jobs ? queue.jobs.map(mapIpsJobToOpp) : [];
@@ -156,7 +160,19 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
       setApplications(apps.map((a) => mapApiApplication(a, opps, tl)));
 
-      if (summary || queue) {
+      // /dashboard/brief gives real since-last-login deltas; fall back to
+      // lifetime totals from /analytics/summary + the apply queue only if
+      // /brief is unavailable (e.g. migration 041 not yet applied).
+      if (brief) {
+        setBriefStats((prev) => ({
+          ...prev,
+          discovered: brief.opportunities_discovered,
+          shortlisted: brief.shortlisted,
+          submitted: brief.applications_submitted,
+          referral: brief.referrals_surfaced,
+          interview: brief.interviews_scheduled,
+        }));
+      } else if (summary || queue) {
         setBriefStats((prev) => ({
           ...prev,
           submitted: summary?.total_applications ?? summary?.submitted ?? prev.submitted,
@@ -309,11 +325,12 @@ export async function fetchCareerIntel() {
   const healthy = await checkBackendHealth();
   if (!healthy) return null;
   try {
-    const [insights, roi] = await Promise.all([
+    const [insights, roi, segments] = await Promise.all([
       apiGetPersonalInsights(),
       apiGetCareerRoi(8),
+      apiGetPersonalModelSegments().catch(() => null),
     ]);
-    return { insights, roi };
+    return { insights, roi, segments };
   } catch {
     return null;
   }

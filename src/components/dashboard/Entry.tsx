@@ -4,7 +4,39 @@ import { Icon } from "./icons";
 import { CountUp, useStagger } from "./shared";
 import { USER, BRIEF } from "./data";
 import { useDashboard } from "@/contexts/DashboardContext";
+import { apiGetDashboardActions } from "@/lib/api";
 import { getDisplayName, getActiveForDuration, requestOpenPrepBrief, requestHighlightOutreachDraft, getBriefVariant, saveBriefVariant } from "./session";
+
+type BriefAction = {
+  kicker: string;
+  title: string;
+  meta: string;
+  btn: string;
+  to: string;
+};
+
+const FALLBACK_ACTIONS: BriefAction[] = [
+  { kicker: "Interview in 47 hours", title: "Razorpay · SDE-2", meta: "Prep brief ready · Thursday 9:00 AM", btn: "Open Brief", to: "prep" },
+  { kicker: "Referral draft ready", title: "Stripe · Backend Engineer", meta: "2nd-degree via Arjun Mehta", btn: "Review Draft", to: "outreach" },
+];
+
+function useBriefActions(apiLive: boolean): BriefAction[] {
+  const [actions, setActions] = useState<BriefAction[] | null>(null);
+  useEffect(() => {
+    if (!apiLive) { setActions(null); return; }
+    let cancelled = false;
+    apiGetDashboardActions(2)
+      .then((data) => {
+        if (cancelled) return;
+        setActions((data?.actions ?? []).slice(0, 2).map((a) => ({
+          kicker: a.kicker, title: a.title, meta: a.meta, btn: a.btn, to: a.to,
+        })));
+      })
+      .catch(() => { if (!cancelled) setActions([]); });
+    return () => { cancelled = true; };
+  }, [apiLive]);
+  return apiLive ? (actions ?? []) : FALLBACK_ACTIONS;
+}
 
 const arrIcon: React.CSSProperties = { width: 14, height: 14, display: "inline-block" };
 
@@ -72,7 +104,7 @@ function BriefLetterFirst({ onEnter, firstName }: { onEnter: () => void; firstNa
   );
 }
 
-function BriefLetter({ onEnter, goTo, firstName, brief }: { onEnter: () => void; goTo: (p: string) => void; firstName: string; brief: typeof BRIEF }) {
+function BriefLetter({ onEnter, goTo, firstName, brief, actions }: { onEnter: () => void; goTo: (p: string) => void; firstName: string; brief: typeof BRIEF; actions: BriefAction[] }) {
   const activeDuration = getActiveForDuration() ?? USER.activeFor;
   const stats = [
     { n: brief.discovered, k: "opportunities discovered" },
@@ -94,30 +126,30 @@ function BriefLetter({ onEnter, goTo, firstName, brief }: { onEnter: () => void;
           </BlLine>
         ))}
       </div>
-      <BlLine i={7} shown={shown} className="bl-rule" />
-      <BlLine i={8} shown={shown} className="bl-need"><b>2</b> things need your attention.</BlLine>
-      <div className="bl-actions">
-        <BlLine i={9} shown={shown} className="bl-action">
-          <div className="ba-l">
-            <div className="ba-kicker">Interview in 47 hours</div>
-            <div className="ba-title">Razorpay · SDE-2</div>
-            <div className="ba-meta">Prep brief ready · Thursday 9:00 AM</div>
+      {actions.length > 0 && (
+        <>
+          <BlLine i={7} shown={shown} className="bl-rule" />
+          <BlLine i={8} shown={shown} className="bl-need"><b>{actions.length}</b> thing{actions.length === 1 ? "" : "s"} need your attention.</BlLine>
+          <div className="bl-actions">
+            {actions.map((a, i) => (
+              <BlLine i={9 + i} shown={shown} className="bl-action" key={i}>
+                <div className="ba-l">
+                  <div className="ba-kicker">{a.kicker}</div>
+                  <div className="ba-title">{a.title}</div>
+                  <div className="ba-meta">{a.meta}</div>
+                </div>
+                <button className={"btn btn-sm " + (i === 0 ? "btn-primary" : "btn-ghost")} onClick={() => {
+                  if (a.to === "prep") requestOpenPrepBrief();
+                  if (a.to === "outreach") requestHighlightOutreachDraft("d1");
+                  goTo(a.to);
+                }}>
+                  {a.btn} <span className="arr" style={arrIcon}><Icon name="arrow" /></span>
+                </button>
+              </BlLine>
+            ))}
           </div>
-          <button className="btn btn-primary btn-sm" onClick={() => { requestOpenPrepBrief(); goTo("prep"); }}>
-            Open Brief <span className="arr" style={arrIcon}><Icon name="arrow" /></span>
-          </button>
-        </BlLine>
-        <BlLine i={10} shown={shown} className="bl-action">
-          <div className="ba-l">
-            <div className="ba-kicker">Referral draft ready</div>
-            <div className="ba-title">Stripe · Backend Engineer</div>
-            <div className="ba-meta">2nd-degree via Arjun Mehta</div>
-          </div>
-          <button className="btn btn-ghost btn-sm" onClick={() => { requestHighlightOutreachDraft("d1"); goTo("outreach"); }}>
-            Review Draft <span className="arr" style={arrIcon}><Icon name="arrow" /></span>
-          </button>
-        </BlLine>
-      </div>
+        </>
+      )}
       <BlLine i={11} shown={shown} className="bl-rule" />
       <BlLine i={12} shown={shown} className="bl-foot">
         <button className="btn btn-quiet" onClick={onEnter}>
@@ -168,7 +200,7 @@ function BriefTerminalFirst({ onEnter, firstName }: { onEnter: () => void; first
   );
 }
 
-function BriefTerminal({ onEnter, goTo, firstName, brief }: { onEnter: () => void; goTo: (p: string) => void; firstName: string; brief: typeof BRIEF }) {
+function BriefTerminal({ onEnter, goTo, firstName, brief, actions }: { onEnter: () => void; goTo: (p: string) => void; firstName: string; brief: typeof BRIEF; actions: BriefAction[] }) {
   const activeDuration = getActiveForDuration() ?? USER.activeFor;
   const rows = [
     { tk: "22:48", n: brief.discovered, tx: "opportunities discovered across 16 sources" },
@@ -201,25 +233,25 @@ function BriefTerminal({ onEnter, goTo, firstName, brief }: { onEnter: () => voi
               </div>
             ))}
           </div>
-          <div className="bt-attn">
-            <div className="hd">› 2 items need you — nothing else does</div>
-            <div className="bt-task">
-              <span className="bullet">▸</span>
-              <div className="tl">
-                <div className="tt">Interview in 47 hours · Razorpay SDE-2</div>
-                <div className="tm">prep brief ready · thu 09:00</div>
-              </div>
-              <button className="btn btn-primary btn-sm" onClick={() => { requestOpenPrepBrief(); goTo("prep"); }}>Open Brief</button>
+          {actions.length > 0 && (
+            <div className="bt-attn">
+              <div className="hd">› {actions.length} item{actions.length === 1 ? "" : "s"} need you — nothing else does</div>
+              {actions.map((a, i) => (
+                <div className="bt-task" key={i}>
+                  <span className="bullet">▸</span>
+                  <div className="tl">
+                    <div className="tt">{a.kicker} · {a.title}</div>
+                    <div className="tm">{a.meta}</div>
+                  </div>
+                  <button className={"btn btn-sm " + (i === 0 ? "btn-primary" : "btn-ghost")} onClick={() => {
+                    if (a.to === "prep") requestOpenPrepBrief();
+                    if (a.to === "outreach") requestHighlightOutreachDraft("d1");
+                    goTo(a.to);
+                  }}>{a.btn}</button>
+                </div>
+              ))}
             </div>
-            <div className="bt-task">
-              <span className="bullet">▸</span>
-              <div className="tl">
-                <div className="tt">Referral draft ready · Stripe Backend Engineer</div>
-                <div className="tm">2nd-degree via arjun_mehta · awaiting your send</div>
-              </div>
-              <button className="btn btn-ghost btn-sm" onClick={() => { requestHighlightOutreachDraft("d1"); goTo("outreach"); }}>Review</button>
-            </div>
-          </div>
+          )}
           <div className="bt-foot">
             <span className="bt-prompt"><span className="usr">aviram</span>:<span className="cmd">~$</span> <span className="cur">█</span></span>
             <span style={{ flex: 1 }} />
@@ -242,6 +274,7 @@ export default function Entry({
 }) {
   const { briefStats, userMeta, apiLive } = useDashboard();
   const brief = apiLive ? briefStats : BRIEF;
+  const actions = useBriefActions(apiLive);
   const [stage, setStage] = useState<"active" | "brief">("active");
   const [variant, setVariant] = useState<"letter" | "terminal">("letter");
   const firstName = userMeta.first || getDisplayName();
@@ -281,9 +314,9 @@ export default function Entry({
             ? <BriefLetterFirst onEnter={onEnter} firstName={firstName} />
             : <BriefTerminalFirst onEnter={onEnter} firstName={firstName} />
         ) : variant === "letter" ? (
-          <BriefLetter onEnter={onEnter} goTo={goTo} firstName={firstName} brief={brief} />
+          <BriefLetter onEnter={onEnter} goTo={goTo} firstName={firstName} brief={brief} actions={actions} />
         ) : (
-          <BriefTerminal onEnter={onEnter} goTo={goTo} firstName={firstName} brief={brief} />
+          <BriefTerminal onEnter={onEnter} goTo={goTo} firstName={firstName} brief={brief} actions={actions} />
         )}
       </div>
     </div>

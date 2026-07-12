@@ -4,12 +4,29 @@ import { INTEL } from "@/components/dashboard/data";
 import { CountUp, PageHead, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 import { fetchCareerIntel, useDashboard } from "@/contexts/DashboardContext";
+import type { PersonalModelSegment } from "@/lib/api/services";
 
 type IntelView = typeof INTEL;
+
+const DIMENSION_LABELS: Record<string, (key: string) => string> = {
+  role_category: (k) => k.replace(/_/g, " "),
+  ats_platform: (k) => `${k} (ATS)`,
+  industry: (k) => k.replace(/_/g, " "),
+  funding_stage: (k) => k.replace(/_/g, " "),
+  referral_channel: (k) => `${k.replace(/_/g, " ")} referral`,
+  timing_bucket: (k) => k.replace(/_/g, " "),
+  resume_variant: (k) => `Resume: ${k.replace(/_/g, " ")}`,
+};
+
+function segmentLabel(s: PersonalModelSegment): string {
+  const fn = DIMENSION_LABELS[s.dimension_type];
+  return fn ? fn(s.dimension_key) : s.dimension_key.replace(/_/g, " ");
+}
 
 function mapApiIntel(
   insights: Record<string, unknown> | null,
   roi: Record<string, unknown> | null,
+  segments: { segments: PersonalModelSegment[] } | null,
 ): IntelView {
   const base: IntelView = { ...INTEL, hasData: false };
   const modelStatus = insights?.model_status as string | undefined;
@@ -62,6 +79,18 @@ function mapApiIntel(
   if (ctx?.baseline_interviews_per_month != null && base.projected === INTEL.projected) {
     base.projected = Math.round(ctx.baseline_interviews_per_month * 12 / 10);
   }
+  const segRows = segments?.segments ?? [];
+  if (segRows.length > 0) {
+    base.hasData = true;
+    const sorted = [...segRows]
+      .filter((s) => s.response_rate != null)
+      .sort((a, b) => (b.response_rate ?? 0) - (a.response_rate ?? 0));
+    base.wins = sorted.slice(0, 6).map((s) => ({
+      k: segmentLabel(s),
+      v: Math.round((s.response_rate ?? 0) * 100),
+      hi: (s.lift_vs_baseline ?? 0) >= 0,
+    }));
+  }
   return base.hasData ? base : { ...INTEL, hasData: modelStatus === "archetype_only" ? false : INTEL.hasData };
 }
 
@@ -79,7 +108,7 @@ export default function CareerIntelligence() {
       // check failed or the API calls threw) — so a transient backend issue
       // shows an honest empty state instead of leaving the fabricated mock
       // narrative on screen indefinitely.
-      setIntel(data ? mapApiIntel(data.insights, data.roi) : { ...INTEL, hasData: false });
+      setIntel(data ? mapApiIntel(data.insights, data.roi, data.segments) : { ...INTEL, hasData: false });
     });
   }, [apiLive]);
 

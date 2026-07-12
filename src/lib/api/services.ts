@@ -330,6 +330,24 @@ export async function apiGetCareerRoi(limit = 8): Promise<Record<string, unknown
   return apiFetch(`/career-roi/recommendations?limit=${limit}`);
 }
 
+export type PersonalModelSegment = {
+  dimension_type: string;
+  dimension_key: string;
+  applications: number;
+  positive_outcomes: number;
+  response_rate: number | null;
+  avg_ips: number | null;
+  lift_vs_baseline: number | null;
+};
+
+export async function apiGetPersonalModelSegments(): Promise<{
+  dimension_type: string | null;
+  segments: PersonalModelSegment[];
+  week_start: string;
+}> {
+  return apiFetch("/personal-model/segments");
+}
+
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 
 export async function apiGetDashboardActions(limit = 7): Promise<{
@@ -351,6 +369,17 @@ export async function apiGetDashboardActions(limit = 7): Promise<{
 
 export async function apiDismissAction(actionId: string): Promise<void> {
   await apiFetch(`/dashboard/actions/${actionId}/dismiss`, { method: "POST" });
+}
+
+export async function apiGetDashboardBrief(): Promise<{
+  since: string;
+  opportunities_discovered: number;
+  shortlisted: number;
+  applications_submitted: number;
+  referrals_surfaced: number;
+  interviews_scheduled: number;
+}> {
+  return apiFetch(`/dashboard/brief`);
 }
 
 // ── Opportunity Memory ────────────────────────────────────────────────────────

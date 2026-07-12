@@ -13,17 +13,23 @@ type RateFilter = "all" | "high" | "mid" | "low";
 type ReferralFilter = "all" | "yes" | "no";
 type FundingFilter = "all" | "recent" | "stable";
 
-// CompanyResearch (the shared 24h scrape cache) has no urgency/response-rate/
-// referral signal — those live in separate services (urgency_service,
-// referral_service). Map only what's real; leave the rest at honest neutral
-// defaults rather than fabricating numbers.
+// CompanyResearch (the shared 24h scrape cache) has no urgency/referral
+// signal of its own — those live in separate services (urgency_service,
+// referral_service) that aren't wired to this list yet. response_rate IS
+// real (joined server-side from company_response_rates). Map only what's
+// real; leave the rest at honest neutral defaults rather than fabricating
+// numbers.
 function mapResearchToVaultEntry(r: CompanyResearch, i: number): VaultEntry {
   const hasData = Boolean(r.overview || r.tech_stack.length || r.culture_signals.length);
+  const responseRate = r.response_rate != null ? Math.round(r.response_rate * 100) : 0;
   const kv: [string, string, string][] = [];
   if (r.funding_stage || r.funding_amount) {
     kv.push(["Funding", [r.funding_stage, r.funding_amount].filter(Boolean).join(" — "), ""]);
   }
   if (r.employee_count) kv.push(["Employee count", r.employee_count, ""]);
+  if (r.response_rate != null) {
+    kv.push(["Response rate", `${responseRate}%${r.application_count ? ` (${r.application_count} tracked)` : ""}`, ""]);
+  }
   if (r.tech_stack.length) kv.push(["Tech stack", r.tech_stack.join(", "), ""]);
   if (r.culture_signals.length) kv.push(["Culture signals", r.culture_signals.join(", "), ""]);
   if (r.domain) kv.push(["Domain", r.domain, ""]);
@@ -36,7 +42,7 @@ function mapResearchToVaultEntry(r: CompanyResearch, i: number): VaultEntry {
     logo: r.company_name.charAt(0).toUpperCase(),
     signal: hasData ? "medium" : "weak",
     urgency: "medium" as const,
-    responseRate: 0,
+    responseRate,
     hasReferral: false,
     fundingRecent: false,
     kv,
