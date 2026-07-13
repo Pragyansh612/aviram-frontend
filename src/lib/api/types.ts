@@ -21,8 +21,27 @@ export type ProfileResponse = {
   website_url: string | null;
   bio: string | null;
   connections_prompted?: boolean;
+  extension_auto_approve?: boolean;
   onboarding_completed: boolean;
   onboarding_completed_at: string | null;
+};
+
+export type ExtensionQueueItem = {
+  task_id: string;
+  job_title: string;
+  company: string;
+  platform: string;
+  apply_url: string;
+  ips: number | null;
+  queued_at: string;
+  resume_variant: string | null;
+  form_fields_count: number;
+};
+
+export type ExtensionQueueResponse = {
+  queue: ExtensionQueueItem[];
+  total: number;
+  auto_approve_in_hours: number | null;
 };
 
 export type PreferencesResponse = {

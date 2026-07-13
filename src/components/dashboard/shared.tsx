@@ -4,9 +4,10 @@ import { Icon } from "./icons";
 import { USER } from "./data";
 import { getCalibrationCount } from "./session";
 import { useDashboard } from "@/contexts/DashboardContext";
+import { apiGetExtensionQueue } from "@/lib/api";
 
 export type PageId =
-  | "command" | "timeline" | "opportunities" | "applications"
+  | "command" | "timeline" | "extension-queue" | "opportunities" | "applications"
   | "resume" | "intelligence" | "vault" | "outreach" | "prep" | "settings";
 
 // ---------- IPS chip ----------
@@ -146,6 +147,7 @@ export function useStagger(count: number, active = true, step = 50, base = 60) {
 export const NAV_ITEMS: { id?: PageId; label?: string; icon?: string; div?: boolean }[] = [
   { id: "command",      label: "Command Center",    icon: "command" },
   { id: "timeline",     label: "Timeline",          icon: "timeline" },
+  { id: "extension-queue", label: "Extension Queue", icon: "plug" },
   { div: true },
   { id: "opportunities",label: "Opportunities",     icon: "opportunities" },
   { id: "applications", label: "Applications",      icon: "applications" },
@@ -192,6 +194,20 @@ export function Sidebar({ page, setPage, running, toggleRunning, toggleTheme }: 
   const { userMeta, apiLive } = useDashboard();
   const u = apiLive ? userMeta : USER;
   const calibration = apiLive ? u.calibration : (getCalibrationCount() ?? u.calibration);
+  const [extensionQueueCount, setExtensionQueueCount] = useState(0);
+
+  useEffect(() => {
+    if (!apiLive) return;
+    let cancelled = false;
+    const fetchCount = () => {
+      apiGetExtensionQueue()
+        .then((data) => { if (!cancelled) setExtensionQueueCount(data.total ?? 0); })
+        .catch(() => { /* non-blocking — badge just stays at its last known count */ });
+    };
+    fetchCount();
+    const t = setInterval(fetchCount, 60_000);
+    return () => { cancelled = true; clearInterval(t); };
+  }, [apiLive]);
 
   const handleStatusClick = () => {
     if (running) setConfirmPause(true);
@@ -224,6 +240,9 @@ export function Sidebar({ page, setPage, running, toggleRunning, toggleTheme }: 
               >
                 <span className="ico"><Icon name={item.icon!} /></span>
                 <span className="nav-lbl">{item.label}</span>
+                {item.id === "extension-queue" && extensionQueueCount > 0 && (
+                  <span className="nav-badge">{extensionQueueCount}</span>
+                )}
               </button>
             )
         )}

@@ -42,12 +42,14 @@ import ResearchVault from "./pages/ResearchVault";
 import Outreach from "./pages/Outreach";
 import InterviewPrep from "./pages/InterviewPrep";
 import Settings from "./pages/Settings";
+import ExtensionQueue from "./pages/ExtensionQueue";
 import ToastHost from "./Toast";
 
 const PAGE_TITLE: Record<PageId, string> = {
-  command: "Command Center", timeline: "Timeline", opportunities: "Opportunities",
-  applications: "Applications", resume: "Resume Lab", intelligence: "Career Intelligence",
-  vault: "Research Vault", outreach: "Outreach", prep: "Interview Prep", settings: "Settings",
+  command: "Command Center", timeline: "Timeline", "extension-queue": "Extension Queue",
+  opportunities: "Opportunities", applications: "Applications", resume: "Resume Lab",
+  intelligence: "Career Intelligence", vault: "Research Vault", outreach: "Outreach",
+  prep: "Interview Prep", settings: "Settings",
 };
 
 function useTheme() {
@@ -117,6 +119,7 @@ function DashboardShell() {
   switch (page) {
     case "command":       content = <CommandCenter goTo={navigate} openOpp={openOpp} />; break;
     case "timeline":      content = <Timeline goTo={navigate} />; break;
+    case "extension-queue": content = <ExtensionQueue />; break;
     case "opportunities": content = <Opportunities openOpp={openOpp} selectedId={opp?.id} />; break;
     case "applications":  content = <Applications openOpp={openOpp} expandAppId={expandAppId} />; break;
     case "resume":        content = <ResumeLab />; break;

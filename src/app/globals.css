@@ -699,6 +699,7 @@ section { position: relative; }
 .nav-item.active::before { content: ""; position: absolute; left: 0; top: 5px; bottom: 5px; width: 3px; border-radius: 0 2px 2px 0; background: var(--accent); }
 [data-theme="dark"] .nav-item.active::before { background: var(--forest); }
 .nav-item .ico { width: 17px; height: 17px; flex: none; opacity: 0.85; display: block; }
+.nav-badge { margin-left: auto; font-family: var(--mono); font-size: 10.5px; font-weight: 600; line-height: 1; padding: 3px 6px; border-radius: 20px; background: var(--accent); color: var(--accent-fg); flex: none; }
 .nav-item.active .ico { opacity: 1; color: var(--accent); }
 [data-theme="dark"] .nav-item.active .ico { color: var(--forest); }
 .sb-foot { border-top: 1px solid var(--line); padding: 14px 16px 12px; }
@@ -1085,6 +1086,40 @@ section { position: relative; }
 .apps-row .ar-variant { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
 .apps-colhead { display: grid; grid-template-columns: 1.6fr 1fr auto auto auto; gap: 14px; padding: 0 16px 10px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); }
 .apps-expand { padding: 18px 20px 20px; border: 1px solid var(--line); border-top: none; border-radius: 0 0 11px 11px; background: var(--paper-2); display: flex; flex-direction: column; gap: 16px; animation: entryFade .25s var(--ease); }
+
+/* ---------- Extension Queue ---------- */
+.autoapprove-toggle { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 12px; font-weight: 600; padding: 7px 14px; border-radius: 20px; border: 1px solid var(--line); background: var(--paper); color: var(--ink-3); cursor: pointer; transition: border-color .18s, color .18s; }
+.autoapprove-toggle .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-4); flex: none; }
+.autoapprove-toggle.on { color: var(--accent); border-color: var(--accent-edge); }
+.autoapprove-toggle.on .dot { background: var(--accent); }
+.autoapprove-toggle:disabled { opacity: 0.6; cursor: default; }
+
+.extq-summary { font-size: 13.5px; color: var(--ink-3); margin: -4px 0 14px; line-height: 1.5; }
+.extq-bulk-actions { display: flex; gap: 10px; margin-bottom: 18px; }
+
+.extq-table { width: 100%; }
+.extq-colhead { display: grid; grid-template-columns: auto 1.6fr 1fr auto auto auto; gap: 14px; padding: 0 16px 10px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); align-items: center; }
+.extq-row { display: grid; grid-template-columns: auto 1.6fr 1fr auto auto auto; gap: 14px; align-items: center; padding: 14px 16px; border: 1px solid var(--line); border-radius: 11px; background: var(--paper); margin-bottom: 8px; transition: border-color .18s, opacity .3s var(--ease), transform .3s var(--ease); }
+.extq-row:hover { border-color: var(--line-strong); }
+.extq-row.fading { opacity: 0; transform: translateX(8px); }
+.extq-row.approved { border-color: var(--accent-edge); background: var(--accent-tint); }
+.extq-job { font-size: 14px; font-weight: 500; letter-spacing: -0.01em; }
+.extq-company { font-size: 13px; color: var(--ink-3); }
+.extq-queued { font-family: var(--mono); font-size: 12px; color: var(--ink-4); white-space: nowrap; }
+.extq-actions { display: flex; gap: 6px; justify-content: flex-end; }
+.extq-approved-label { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 11.5px; font-weight: 600; color: var(--accent); }
+.extq-approved-label svg { width: 13px; height: 13px; }
+
+.platform-badge { display: inline-flex; align-items: center; font-family: var(--sans); font-size: 11px; font-weight: 500; padding: 3px 9px; border-radius: 20px; letter-spacing: -0.005em; white-space: nowrap; }
+.platform-badge.pb-wellfound { color: #6D4EAF; background: color-mix(in srgb, #6D4EAF 14%, transparent); }
+.platform-badge.pb-linkedin { color: #0A66C2; background: color-mix(in srgb, #0A66C2 12%, transparent); }
+.platform-badge.pb-glassdoor { color: #0CAA41; background: color-mix(in srgb, #0CAA41 12%, transparent); }
+.platform-badge.pb-default { color: var(--ink-3); background: var(--cream-deep); }
+
+@media (max-width: 860px) {
+  .extq-row, .extq-colhead { grid-template-columns: auto 1.4fr auto; }
+  .extq-company, .extq-queued { display: none; }
+}
 .ae-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-4); margin-bottom: 8px; }
 .ae-cover { font-size: 13.5px; color: var(--ink-2); line-height: 1.6; font-style: italic; max-width: 72ch; }
 .ae-meta { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }

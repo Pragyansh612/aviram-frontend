@@ -15,6 +15,7 @@ import type {
   ConnectionsBySource,
   ExperimentInsight,
   ExperimentVariant,
+  ExtensionQueueResponse,
   LinkedInConnectionItem,
   NetworkImportResult,
   NetworkProfile,
@@ -74,6 +75,7 @@ export async function apiUpdateProfile(body: Partial<ProfileResponse>): Promise<
       website_url: body.website_url,
       bio: body.bio,
       connections_prompted: body.connections_prompted,
+      extension_auto_approve: body.extension_auto_approve,
     }),
   });
 }
@@ -346,6 +348,20 @@ export async function apiGetPersonalModelSegments(): Promise<{
   week_start: string;
 }> {
   return apiFetch("/personal-model/segments");
+}
+
+// ── Extension queue ───────────────────────────────────────────────────────────
+
+export async function apiGetExtensionQueue(): Promise<ExtensionQueueResponse> {
+  return apiFetch<ExtensionQueueResponse>("/extension/tasks/queue");
+}
+
+export async function apiApproveExtensionTask(taskId: string): Promise<{ task_id: string; status: string; approved_by_user: boolean }> {
+  return apiFetch(`/extension/tasks/${taskId}/approve`, { method: "POST" });
+}
+
+export async function apiSkipExtensionTask(taskId: string): Promise<{ task_id: string; status: string; approved_by_user: boolean }> {
+  return apiFetch(`/extension/tasks/${taskId}/skip`, { method: "POST" });
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
