@@ -1,15 +1,14 @@
 "use client";
 import { useState, useEffect, useRef, useMemo } from "react";
-import { OPPS, MISSIONS, APPS } from "@/components/dashboard/data";
-import { IPSChip, Urgent, PageHead, EmptyState } from "@/components/dashboard/shared";
+import { OPPS, APPS } from "@/components/dashboard/data";
+import { IPSChip, Urgent, PageHead, EmptyState, useMissions } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 import { addSkippedOpp, removeSkippedOpp, addSessionApps, addSessionTimelineEvents, incrementCalibration } from "@/components/dashboard/session";
 import { showToast } from "@/components/dashboard/Toast";
 import BulkApplyPanel from "@/components/dashboard/BulkApplyPanel";
 import { useDashboard } from "@/contexts/DashboardContext";
-import { apiRecordOpportunityInteraction, apiUnseeOpportunity, apiGetPreferences } from "@/lib/api";
+import { apiRecordOpportunityInteraction, apiUnseeOpportunity } from "@/lib/api";
 import type { Opp } from "@/components/dashboard/DetailPanel";
-import type { PreferencesResponse } from "@/lib/api/types";
 
 const OPP_FILTERS = ["All", "Remote", "Referral available", "⚡ Urgent", "IPS ≥ 80", "Series A–B"];
 
@@ -212,32 +211,7 @@ export default function Opportunities({ openOpp, selectedId }: { openOpp: (o: Op
   );
 
   // Missions: derived from real preferences (desired roles) + real application/queue counts.
-  const [prefs, setPrefs] = useState<PreferencesResponse | null>(null);
-  useEffect(() => {
-    if (!apiLive) return;
-    let cancelled = false;
-    apiGetPreferences().then((p) => { if (!cancelled) setPrefs(p); }).catch(() => {});
-    return () => { cancelled = true; };
-  }, [apiLive]);
-
-  const missions = useMemo(() => {
-    if (!apiLive || !prefs || prefs.desired_roles.length === 0) return MISSIONS;
-    return prefs.desired_roles.slice(0, 3).map((role, i) => {
-      const roleLower = role.toLowerCase();
-      const matchedOpps = apiOpps.filter((o) => o.role.toLowerCase().includes(roleLower));
-      const matchedApps = sourceApps.filter((a) => a.role.toLowerCase().includes(roleLower));
-      const done = matchedApps.length;
-      const remaining = matchedOpps.filter((o) => !appliedMap.has(o.id) && !sessionApplied.has(o.id));
-      const predicted = remaining.reduce((sum, o) => sum + o.ips / 100, 0);
-      return {
-        id: `pref-${i}`,
-        title: role,
-        done,
-        target: done + remaining.length,
-        predicted: Math.round(predicted * 10) / 10,
-      };
-    });
-  }, [apiLive, prefs, apiOpps, sourceApps, appliedMap, sessionApplied]);
+  const { missions, hasPrefs } = useMissions();
   const missionLabels: Record<string, string> = useMemo(
     () => Object.fromEntries(missions.map((m) => [m.id, m.title])),
     [missions],
@@ -373,7 +347,7 @@ export default function Opportunities({ openOpp, selectedId }: { openOpp: (o: Op
         sub="Every opening Aviram has scored, ranked by interview probability and grouped under the missions you set."
       />
       <div className="sec-label">Active missions <span className="ln" /></div>
-      {apiLive && prefs && prefs.desired_roles.length === 0 ? (
+      {apiLive && !hasPrefs ? (
         <EmptyState>Set your desired roles in Settings to see missions computed from your real preferences.</EmptyState>
       ) : (
         <div className="missions">

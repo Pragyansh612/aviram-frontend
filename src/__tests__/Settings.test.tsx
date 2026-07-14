@@ -8,17 +8,17 @@ import { render, screen, fireEvent, act } from "@testing-library/react";
 
 // ── API mocks ─────────────────────────────────────────────────────────────────
 
-const mockApiUpdateProfile = jest.fn(() => Promise.resolve({ full_name: "Test User" }));
-const mockApiUpsertPreferences = jest.fn(() => Promise.resolve({}));
-const mockApiUpdateAgentSettings = jest.fn(() => Promise.resolve({}));
-const mockApiListCredentials = jest.fn(() => Promise.resolve([]));
-const mockApiUpsertCredential = jest.fn(() => Promise.resolve({ platform: "greenhouse" }));
-const mockApiDeleteCredential = jest.fn(() => Promise.resolve());
-const mockApiGetProfile = jest.fn(() => Promise.resolve(null));
-const mockApiGetPreferences = jest.fn(() => Promise.resolve(null));
-const mockApiGetAgentSettings = jest.fn(() => Promise.resolve(null));
-const mockApiImportLinkedInConnections = jest.fn(() => Promise.resolve({ imported: 0, updated: 0, skipped: 0, total: 0, message: "" }));
-const mockApiSyncGithubNetwork = jest.fn(() => Promise.resolve({ imported: 0, updated: 0, skipped: 0, total: 0, message: "" }));
+const mockApiUpdateProfile = jest.fn((...args: unknown[]) => Promise.resolve({ full_name: "Test User" }));
+const mockApiUpsertPreferences = jest.fn((...args: unknown[]) => Promise.resolve({}));
+const mockApiUpdateAgentSettings = jest.fn((...args: unknown[]) => Promise.resolve({}));
+const mockApiListCredentials = jest.fn((...args: unknown[]) => Promise.resolve([]));
+const mockApiUpsertCredential = jest.fn((...args: unknown[]) => Promise.resolve({ platform: "greenhouse" }));
+const mockApiDeleteCredential = jest.fn((...args: unknown[]) => Promise.resolve());
+const mockApiGetProfile = jest.fn((...args: unknown[]) => Promise.resolve(null));
+const mockApiGetPreferences = jest.fn((...args: unknown[]) => Promise.resolve(null));
+const mockApiGetAgentSettings = jest.fn((...args: unknown[]) => Promise.resolve(null));
+const mockApiImportLinkedInConnections = jest.fn((...args: unknown[]) => Promise.resolve({ imported: 0, updated: 0, skipped: 0, total: 0, message: "" }));
+const mockApiSyncGithubNetwork = jest.fn((...args: unknown[]) => Promise.resolve({ imported: 0, updated: 0, skipped: 0, total: 0, message: "" }));
 
 jest.mock("@/lib/api", () => ({
   apiUpdateProfile: (...args: unknown[]) => mockApiUpdateProfile(...args),

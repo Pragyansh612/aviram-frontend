@@ -1,4 +1,4 @@
-import { apiFetch } from "./client";
+import { apiFetch, ApiError } from "./client";
 import { saveTokens, clearTokens } from "./tokens";
 import type {
   ActiveResume,
@@ -10,8 +10,11 @@ import type {
   CalibrationStatus,
   CompanyResearch,
   ComputeIPSResponse,
+  FullSessionResponse,
+  InterviewQuestion,
   InterviewSession,
   JobDetail,
+  PrepPlan,
   ConnectionsBySource,
   ExperimentInsight,
   ExperimentVariant,
@@ -293,6 +296,10 @@ export async function apiListResumes(): Promise<{ resumes: Array<Record<string, 
   return apiFetch("/resumes/");
 }
 
+export async function apiActivateResume(resumeId: string): Promise<{ id: string; is_active: boolean }> {
+  return apiFetch(`/resumes/${resumeId}/activate`, { method: "PATCH" });
+}
+
 // ── Interview ─────────────────────────────────────────────────────────────────
 
 export async function apiListInterviewSessions(): Promise<InterviewSession[]> {
@@ -302,6 +309,43 @@ export async function apiListInterviewSessions(): Promise<InterviewSession[]> {
 
 export async function apiGetCompanyResearch(companyName: string): Promise<CompanyResearch> {
   return apiFetch<CompanyResearch>(`/interview/research/${encodeURIComponent(companyName)}`);
+}
+
+export async function apiGetInterviewSession(sessionId: string): Promise<InterviewSession> {
+  return apiFetch<InterviewSession>(`/interview/sessions/${sessionId}`);
+}
+
+export async function apiGetInterviewQuestions(sessionId: string): Promise<InterviewQuestion[]> {
+  return apiFetch<InterviewQuestion[]>(`/interview/sessions/${sessionId}/questions`);
+}
+
+// Returns null when the plan hasn't been built yet (404) rather than throwing —
+// "not built yet" is an expected, common state, not an error condition.
+export async function apiGetInterviewPrepPlan(sessionId: string): Promise<PrepPlan | null> {
+  try {
+    return await apiFetch<PrepPlan>(`/interview/sessions/${sessionId}/prep-plan`);
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null;
+    throw e;
+  }
+}
+
+export async function apiMarkInterviewTaskDone(
+  sessionId: string,
+  taskId: string,
+  isDone: boolean,
+): Promise<{ id: string; is_done: boolean }> {
+  return apiFetch(`/interview/sessions/${sessionId}/tasks/${taskId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ is_done: isDone }),
+  });
+}
+
+// Full LLM build (research → questions → prep plan → brief). Takes 15-30s and
+// makes real Gemini calls — only ever call this from an explicit user action,
+// never automatically on page load.
+export async function apiBuildInterviewSession(sessionId: string): Promise<FullSessionResponse> {
+  return apiFetch<FullSessionResponse>(`/interview/sessions/${sessionId}/build`, { method: "POST" });
 }
 
 // ── Outreach & Referral ───────────────────────────────────────────────────────
@@ -320,6 +364,18 @@ export async function apiListOutreachCampaigns(): Promise<Array<Record<string, u
 
 export async function apiGetOutreachCampaign(campaignId: string): Promise<Record<string, unknown>> {
   return apiFetch(`/outreach/campaigns/${encodeURIComponent(campaignId)}`);
+}
+
+export async function apiCreateOutreachCampaign(body: {
+  company_name: string;
+  target_role: string;
+  job_id?: string;
+  notes?: string;
+}): Promise<Record<string, unknown>> {
+  return apiFetch("/outreach/campaigns", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 }
 
 // ── Career intelligence ───────────────────────────────────────────────────────

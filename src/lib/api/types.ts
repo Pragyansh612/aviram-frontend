@@ -186,6 +186,39 @@ export type InterviewSession = {
   job_title: string;
   prep_mode: string;
   interview_at?: string | null;
+  status?: string;
+};
+
+export type InterviewQuestion = {
+  id?: string | null;
+  category: string;
+  question: string;
+  difficulty: string;
+  why_asked?: string | null;
+  hint?: string | null;
+};
+
+export type PrepTask = {
+  id?: string | null;
+  day_number?: number | null;
+  task_type: string;
+  title: string;
+  description?: string | null;
+  duration_mins?: number | null;
+  is_done: boolean;
+};
+
+export type PrepPlan = {
+  mode: string;
+  tasks: PrepTask[];
+};
+
+export type FullSessionResponse = {
+  session: InterviewSession;
+  research: CompanyResearch | null;
+  questions: InterviewQuestion[];
+  prep_plan: PrepPlan | null;
+  brief: string | null;
 };
 
 export type JobDetail = {

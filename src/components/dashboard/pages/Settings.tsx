@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { USER, MISSIONS } from "@/components/dashboard/data";
+import { USER } from "@/components/dashboard/data";
 import {
   getStoredProfile,
   saveStoredProfile,
@@ -30,7 +30,7 @@ import {
   apiGetConnectionsBySource,
 } from "@/lib/api";
 import type { LinkedInConnectionItem } from "@/lib/api";
-import { PageHead } from "@/components/dashboard/shared";
+import { PageHead, useMissions } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 import { showToast } from "@/components/dashboard/Toast";
 import { useDashboard } from "@/contexts/DashboardContext";
@@ -203,6 +203,7 @@ const DEFAULT_CONNS: Record<string, boolean> = {
 
 export default function Settings({ running, toggleRunning }: { running: boolean; toggleRunning: () => void }) {
   const { apiLive, userMeta } = useDashboard();
+  const { missions } = useMissions();
   const [briefVariant, setBriefVariant] = useState<"letter" | "terminal">("letter");
   const [conns, setConns] = useState(DEFAULT_CONNS);
   const [networkImported, setNetworkImported] = useState(false);
@@ -500,7 +501,7 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
             />
           ))}
           <div className="dp-sec" style={{ marginTop: 20, marginBottom: 10 }}>Active missions</div>
-          {MISSIONS.map((m) => (
+          {missions.map((m) => (
             <div className="srow mission-srow" key={m.id}>
               <div className="sl">
                 <div className="k">{m.title}</div>

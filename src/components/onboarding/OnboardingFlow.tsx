@@ -32,6 +32,7 @@ import {
   apiCompleteOnboarding,
   apiImportLinkedInConnections,
   apiSyncGithubNetwork,
+  ApiError,
 } from "@/lib/api";
 import type { LinkedInConnectionItem } from "@/lib/api";
 import { getUserEmail } from "@/lib/api/tokens";
@@ -120,6 +121,8 @@ export default function OnboardingFlow() {
   const [githubUsername, setGithubUsername] = useState("");
   const [githubDone, setGithubDone] = useState(false);
   const [githubBusy, setGithubBusy] = useState(false);
+  const [finishing, setFinishing] = useState(false);
+  const [finishError, setFinishError] = useState<string | null>(null);
 
   useEffect(() => {
     const stored = getStoredProfile();
@@ -174,6 +177,8 @@ export default function OnboardingFlow() {
         "Quality score minimum": rules.qualityMinimum,
         "Auto-send referrals": "false",
       });
+      setFinishing(true);
+      setFinishError(null);
       try {
         await apiUpdateProfile({
           full_name: profile.name,
@@ -198,11 +203,21 @@ export default function OnboardingFlow() {
           company_blocklist: parseTags(rules.blockedCompanies),
           is_enabled: true,
         });
-        // Server-side completion flag — the real source of truth checked
-        // on every future login, from any browser.
+        // Server-side completion flag — the real source of truth checked on every
+        // future login, from any browser. Unlike the calls above (which the user
+        // can always correct later in Settings), a failure here must NOT be
+        // swallowed: syncOnboardingStateFromBackend() trusts this flag, so a
+        // silent failure would bounce the user right back into onboarding the
+        // next time they log in, with no explanation.
         await apiCompleteOnboarding();
-      } catch {
-        // local onboarding still completes if API unavailable
+      } catch (err) {
+        setFinishing(false);
+        setFinishError(
+          err instanceof ApiError
+            ? err.message
+            : "Couldn't finish setup — check your connection and try again.",
+        );
+        return;
       }
       beginFirstDashboardSession();
       router.push("/dashboard");
@@ -484,6 +499,11 @@ export default function OnboardingFlow() {
               <div className="arch"><span className="tag">[mid_backend]</span><span className="frac">0 / 25</span></div>
               <div className="bar"><i style={{ width: "0%" }} /></div>
             </div>
+            {finishError && (
+              <p className="onboard-error" role="alert" style={{ color: "var(--rejected, #9A4A33)", marginTop: 14 }}>
+                {finishError}
+              </p>
+            )}
           </div>
         )}
 
@@ -498,6 +518,7 @@ export default function OnboardingFlow() {
             onClick={next}
             disabled={
               !hydrated
+              || finishing
               || (step === "profile" && (!profile.name.trim() || !profile.phone.trim() || !profile.linkedin.trim()))
               || (step === "resume" && !resumeName)
               || (step === "preferences" && (
@@ -507,7 +528,7 @@ export default function OnboardingFlow() {
               ))
             }
           >
-            {step === "calibration" ? "Enter Aviram" : "Continue"}
+            {step === "calibration" ? (finishing ? "Entering…" : finishError ? "Retry" : "Enter Aviram") : "Continue"}
           </button>
         </div>
       </div>

@@ -5,7 +5,7 @@ import { PageHead, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 import { showToast } from "@/components/dashboard/Toast";
 import { useDashboard } from "@/contexts/DashboardContext";
-import { apiListReferralRequests, apiListOutreachCampaigns } from "@/lib/api";
+import { apiListReferralRequests, apiListOutreachCampaigns, apiCreateOutreachCampaign } from "@/lib/api";
 import type { ReferralRequest } from "@/lib/api";
 import type { Campaign } from "@/components/dashboard/CampaignPanel";
 
@@ -79,6 +79,21 @@ export default function Outreach({ openCampaign, selectedId, highlightDraftId }:
     });
   }, [apiLive]);
 
+  const handleNewCampaign = async () => {
+    if (!apiLive) { showToast(STUB_MSG); return; }
+    const company_name = prompt("Company name:")?.trim();
+    if (!company_name) return;
+    const target_role = prompt("Target role:")?.trim();
+    if (!target_role) return;
+    try {
+      const campaign = await apiCreateOutreachCampaign({ company_name, target_role });
+      setCampaigns((prev) => [mapApiCampaign(campaign, prev.length), ...prev]);
+      showToast(`Campaign created for ${company_name}`, "success");
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Couldn't create campaign", "warn");
+    }
+  };
+
   useEffect(() => {
     if (!highlightDraftId) return;
     setHighlightDraft(highlightDraftId);
@@ -96,7 +111,7 @@ export default function Outreach({ openCampaign, selectedId, highlightDraftId }:
         title="Warm paths, drafted — never sent without you."
         sub="Aviram finds the shortest route into each company and writes the intro. Nothing leaves until you press send."
         right={
-          <button type="button" className="btn btn-quiet btn-sm" onClick={() => showToast(apiLive ? "Campaign creation opens from a job with a referral path." : STUB_MSG)}>
+          <button type="button" className="btn btn-quiet btn-sm" onClick={() => void handleNewCampaign()}>
             New campaign
           </button>
         }

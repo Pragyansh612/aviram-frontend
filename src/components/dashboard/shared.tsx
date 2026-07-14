@@ -1,10 +1,10 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Icon } from "./icons";
-import { USER } from "./data";
+import { USER, MISSIONS } from "./data";
 import { getCalibrationCount } from "./session";
 import { useDashboard } from "@/contexts/DashboardContext";
-import { apiGetExtensionQueue } from "@/lib/api";
+import { apiGetExtensionQueue, apiGetPreferences } from "@/lib/api";
 
 export type PageId =
   | "command" | "timeline" | "extension-queue" | "opportunities" | "applications"
@@ -141,6 +141,46 @@ export function useStagger(count: number, active = true, step = 50, base = 60) {
     return () => timers.forEach(clearTimeout);
   }, [count, active, base, step]);
   return shown;
+}
+
+// ---------- real missions (shared by Opportunities and Settings) ----------
+// Derived from real preferences (desired roles) + the real live opportunity
+// queue / applications already held in DashboardContext — never the MISSIONS
+// mock, except as an explicit offline/demo-mode fallback.
+export type MissionRow = { id: string; title: string; done: number; target: number; predicted: number };
+
+export function useMissions(): { missions: MissionRow[]; hasPrefs: boolean } {
+  const { apiLive, opportunities, applications } = useDashboard();
+  const [prefs, setPrefs] = useState<{ desired_roles: string[] } | null>(null);
+
+  useEffect(() => {
+    if (!apiLive) return;
+    let cancelled = false;
+    apiGetPreferences().then((p) => { if (!cancelled) setPrefs(p); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [apiLive]);
+
+  const missions = useMemo((): MissionRow[] => {
+    if (!apiLive || !prefs || prefs.desired_roles.length === 0) return MISSIONS;
+    return prefs.desired_roles.slice(0, 3).map((role, i) => {
+      const roleLower = role.toLowerCase();
+      const matchedOpps = opportunities.filter((o) => o.role.toLowerCase().includes(roleLower));
+      const matchedApps = applications.filter((a) => a.role.toLowerCase().includes(roleLower));
+      const appliedIds = new Set(matchedApps.map((a) => a.job_id).filter(Boolean));
+      const done = matchedApps.length;
+      const remaining = matchedOpps.filter((o) => !appliedIds.has(o.id));
+      const predicted = remaining.reduce((sum, o) => sum + o.ips / 100, 0);
+      return {
+        id: `pref-${i}`,
+        title: role,
+        done,
+        target: done + remaining.length,
+        predicted: Math.round(predicted * 10) / 10,
+      };
+    });
+  }, [apiLive, prefs, opportunities, applications]);
+
+  return { missions, hasPrefs: !apiLive || !!(prefs && prefs.desired_roles.length > 0) };
 }
 
 // ---------- sidebar nav ----------

@@ -11,6 +11,7 @@ import {
   apiGetActiveResume,
   apiGetExperimentInsights,
   apiGetExperimentVariants,
+  apiActivateResume,
 } from "@/lib/api";
 import type { ExperimentInsight, ExperimentVariant } from "@/lib/api/types";
 
@@ -23,6 +24,7 @@ export default function ResumeLab() {
   const [compare, setCompare] = useState(false);
   const [insights, setInsights] = useState<ExperimentInsight[] | null>(null);
   const [expVariants, setExpVariants] = useState<ExperimentVariant[] | null>(null);
+  const [activating, setActivating] = useState<string | null>(null);
 
   const loadResumes = () => {
     Promise.all([
@@ -72,6 +74,19 @@ export default function ResumeLab() {
     }
     return Array.from(byCat.entries()).map(([cat, v]) => ({ cat, variant: v.variant_label }));
   })();
+
+  const handleSetDefault = async (resumeId: string) => {
+    setActivating(resumeId);
+    try {
+      await apiActivateResume(resumeId);
+      showToast("Default resume updated", "success");
+      loadResumes();
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Couldn't set default resume", "warn");
+    } finally {
+      setActivating(null);
+    }
+  };
 
   const handleUpload = async (file: File) => {
     if (!apiLive) {
@@ -186,6 +201,18 @@ export default function ResumeLab() {
                 <div className="vc-stat"><div className="n">{v.responses}</div><div className="k">responses</div></div>
                 <div className="vc-stat"><div className="n">{v.interviews}</div><div className="k">interviews</div></div>
               </div>
+              {apiLive && !v.isDefault && (
+                <div className="ss-save-row" style={{ marginTop: 10 }}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    disabled={activating === v.id}
+                    onClick={(e) => { e.stopPropagation(); void handleSetDefault(v.id); }}
+                  >
+                    {activating === v.id ? "Setting…" : "Set as default"}
+                  </button>
+                </div>
+              )}
             </div>
           ))}
           <div className="sec-label" style={{ marginTop: 26 }}>Active variant by role <span className="ln" /></div>
