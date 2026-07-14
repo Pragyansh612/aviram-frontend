@@ -5,7 +5,7 @@ import { CountUp, useStagger } from "./shared";
 import { USER, BRIEF } from "./data";
 import { useDashboard } from "@/contexts/DashboardContext";
 import { apiGetDashboardActions } from "@/lib/api";
-import { getDisplayName, getActiveForDuration, requestOpenPrepBrief, requestHighlightOutreachDraft, getBriefVariant, saveBriefVariant } from "./session";
+import { getDisplayName, getActiveForDuration, getActiveForDurationSince, requestOpenPrepBrief, requestHighlightOutreachDraft, getBriefVariant, saveBriefVariant } from "./session";
 
 type BriefAction = {
   kicker: string;
@@ -40,9 +40,12 @@ function useBriefActions(apiLive: boolean): BriefAction[] {
 
 const arrIcon: React.CSSProperties = { width: 14, height: 14, display: "inline-block" };
 
-function ActiveSystem({ onOpen, firstTime }: { onOpen: () => void; firstTime?: boolean }) {
-  // Compute duration from real login timestamp; fall back to mock data
-  const duration = getActiveForDuration() ?? USER.activeFor;
+function ActiveSystem({ onOpen, firstTime, briefSince, apiLive }: { onOpen: () => void; firstTime?: boolean; briefSince: string | null; apiLive: boolean }) {
+  // Live: real duration since profiles.previous_login_at (server-anchored,
+  // accurate across devices). Demo: client-local localStorage timestamp.
+  const duration = (apiLive && briefSince ? getActiveForDurationSince(briefSince) : null)
+    ?? getActiveForDuration()
+    ?? USER.activeFor;
 
   useEffect(() => {
     const t = setTimeout(onOpen, firstTime ? 1800 : 2600);
@@ -104,8 +107,10 @@ function BriefLetterFirst({ onEnter, firstName }: { onEnter: () => void; firstNa
   );
 }
 
-function BriefLetter({ onEnter, goTo, firstName, brief, actions }: { onEnter: () => void; goTo: (p: string) => void; firstName: string; brief: typeof BRIEF; actions: BriefAction[] }) {
-  const activeDuration = getActiveForDuration() ?? USER.activeFor;
+function BriefLetter({ onEnter, goTo, firstName, brief, actions, briefSince, apiLive }: { onEnter: () => void; goTo: (p: string) => void; firstName: string; brief: typeof BRIEF; actions: BriefAction[]; briefSince: string | null; apiLive: boolean }) {
+  const activeDuration = (apiLive && briefSince ? getActiveForDurationSince(briefSince) : null)
+    ?? getActiveForDuration()
+    ?? USER.activeFor;
   const stats = [
     { n: brief.discovered, k: "opportunities discovered" },
     { n: brief.shortlisted, k: "shortlisted by score" },
@@ -200,8 +205,10 @@ function BriefTerminalFirst({ onEnter, firstName }: { onEnter: () => void; first
   );
 }
 
-function BriefTerminal({ onEnter, goTo, firstName, brief, actions }: { onEnter: () => void; goTo: (p: string) => void; firstName: string; brief: typeof BRIEF; actions: BriefAction[] }) {
-  const activeDuration = getActiveForDuration() ?? USER.activeFor;
+function BriefTerminal({ onEnter, goTo, firstName, brief, actions, briefSince, apiLive }: { onEnter: () => void; goTo: (p: string) => void; firstName: string; brief: typeof BRIEF; actions: BriefAction[]; briefSince: string | null; apiLive: boolean }) {
+  const activeDuration = (apiLive && briefSince ? getActiveForDurationSince(briefSince) : null)
+    ?? getActiveForDuration()
+    ?? USER.activeFor;
   const rows = [
     { tk: "22:48", n: brief.discovered, tx: "opportunities discovered across 16 sources" },
     { tk: "23:31", n: brief.shortlisted, tx: "shortlisted above your IPS threshold" },
@@ -272,7 +279,7 @@ export default function Entry({
   goTo: (p: string) => void;
   firstTime?: boolean;
 }) {
-  const { briefStats, userMeta, apiLive } = useDashboard();
+  const { briefStats, briefSince, userMeta, apiLive } = useDashboard();
   const brief = apiLive ? briefStats : BRIEF;
   const actions = useBriefActions(apiLive);
   const [stage, setStage] = useState<"active" | "brief">("active");
@@ -289,7 +296,7 @@ export default function Entry({
   };
 
   if (stage === "active") {
-    return <ActiveSystem onOpen={() => setStage("brief")} firstTime={firstTime} />;
+    return <ActiveSystem onOpen={() => setStage("brief")} firstTime={firstTime} briefSince={briefSince} apiLive={apiLive} />;
   }
 
   return (
@@ -314,9 +321,9 @@ export default function Entry({
             ? <BriefLetterFirst onEnter={onEnter} firstName={firstName} />
             : <BriefTerminalFirst onEnter={onEnter} firstName={firstName} />
         ) : variant === "letter" ? (
-          <BriefLetter onEnter={onEnter} goTo={goTo} firstName={firstName} brief={brief} actions={actions} />
+          <BriefLetter onEnter={onEnter} goTo={goTo} firstName={firstName} brief={brief} actions={actions} briefSince={briefSince} apiLive={apiLive} />
         ) : (
-          <BriefTerminal onEnter={onEnter} goTo={goTo} firstName={firstName} brief={brief} actions={actions} />
+          <BriefTerminal onEnter={onEnter} goTo={goTo} firstName={firstName} brief={brief} actions={actions} briefSince={briefSince} apiLive={apiLive} />
         )}
       </div>
     </div>

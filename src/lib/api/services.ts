@@ -27,6 +27,9 @@ import type {
   PreferencesResponse,
   ProfileResponse,
   ReferralRequest,
+  ReferralPathResponse,
+  CompanyUrgencyResponse,
+  OutreachMessage,
   ResumeMatchResponse,
   TimelineEntry,
   TokenResponse,
@@ -355,6 +358,30 @@ export async function apiListReferralRequests(): Promise<ReferralRequest[]> {
   return Array.isArray(data) ? data : (data.requests ?? []);
 }
 
+// All detected referral paths across every job — used to answer "does this
+// company have a referral path" without needing a job_id (e.g. Research Vault).
+export async function apiListReferralPaths(limit = 500): Promise<ReferralPathResponse[]> {
+  return apiFetch<ReferralPathResponse[]>(`/referral/paths?limit=${limit}`);
+}
+
+// Draft → sent → converted | declined. Aviram never sends the message itself —
+// this just records that the user copied it and sent it manually.
+export async function apiUpdateReferralRequestStatus(
+  requestId: string,
+  status: "draft" | "sent" | "converted" | "declined",
+): Promise<ReferralRequest> {
+  return apiFetch<ReferralRequest>(`/referral/requests/${encodeURIComponent(requestId)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+}
+
+// Cached-fast-path (no `refresh`): DB-cache hit returns instantly; a cache
+// miss computes inline via free signals (funding/HN/velocity) — zero LLM cost.
+export async function apiGetCompanyUrgency(companyName: string): Promise<CompanyUrgencyResponse> {
+  return apiFetch<CompanyUrgencyResponse>(`/urgency/${encodeURIComponent(companyName)}`);
+}
+
 export async function apiListOutreachCampaigns(): Promise<Array<Record<string, unknown>>> {
   const data = await apiFetch<Array<Record<string, unknown>> | { campaigns: Array<Record<string, unknown>> }>(
     "/outreach/campaigns",
@@ -376,6 +403,21 @@ export async function apiCreateOutreachCampaign(body: {
     method: "POST",
     body: JSON.stringify(body),
   });
+}
+
+export async function apiListOutreachMessages(campaignId: string): Promise<OutreachMessage[]> {
+  return apiFetch<OutreachMessage[]>(`/outreach/campaigns/${encodeURIComponent(campaignId)}/messages`);
+}
+
+export async function apiUpdateOutreachMessageStatus(
+  campaignId: string,
+  messageId: string,
+  status: "draft" | "copied" | "sent" | "replied" | "bounced",
+): Promise<OutreachMessage> {
+  return apiFetch<OutreachMessage>(
+    `/outreach/campaigns/${encodeURIComponent(campaignId)}/messages/${encodeURIComponent(messageId)}/status`,
+    { method: "PATCH", body: JSON.stringify({ status }) },
+  );
 }
 
 // ── Career intelligence ───────────────────────────────────────────────────────

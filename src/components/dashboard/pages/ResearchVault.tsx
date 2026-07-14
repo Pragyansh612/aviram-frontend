@@ -4,22 +4,45 @@ import { VAULT } from "@/components/dashboard/data";
 import { PageHead, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 import { useDashboard } from "@/contexts/DashboardContext";
-import { apiListCompanyResearch } from "@/lib/api";
-import type { CompanyResearch } from "@/lib/api/types";
+import { apiListCompanyResearch, apiListReferralPaths, apiGetCompanyUrgency } from "@/lib/api";
+import type { CompanyResearch, ReferralPathResponse } from "@/lib/api/types";
 import type { VaultEntry } from "@/components/dashboard/VaultPanel";
+
+function normalizeCompanyName(name: string): string {
+  return name.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+// Backend urgency_label is a 5-tier scale (cooling|low|medium|high|critical);
+// the vault's filter chips are 3-tier — collapse the extremes inward.
+function toVaultUrgency(label: string): "high" | "medium" | "low" {
+  if (label === "critical" || label === "high") return "high";
+  if (label === "cooling" || label === "low") return "low";
+  return "medium";
+}
+
+function isFundingRecent(fundingDate: string | null | undefined): boolean {
+  if (!fundingDate) return false;
+  const t = new Date(fundingDate).getTime();
+  if (isNaN(t)) return false;
+  return Date.now() - t < 1000 * 60 * 60 * 24 * 270; // ~9 months
+}
 
 type UrgencyFilter = "all" | "high" | "medium" | "low";
 type RateFilter = "all" | "high" | "mid" | "low";
 type ReferralFilter = "all" | "yes" | "no";
 type FundingFilter = "all" | "recent" | "stable";
 
-// CompanyResearch (the shared 24h scrape cache) has no urgency/referral
-// signal of its own — those live in separate services (urgency_service,
-// referral_service) that aren't wired to this list yet. response_rate IS
-// real (joined server-side from company_response_rates). Map only what's
-// real; leave the rest at honest neutral defaults rather than fabricating
-// numbers.
-function mapResearchToVaultEntry(r: CompanyResearch, i: number): VaultEntry {
+// CompanyResearch (the shared 24h scrape cache) has no urgency signal of its
+// own — that lives in urgency_service, fetched lazily per-company when a
+// dossier is opened (see VaultPanel) rather than eagerly for the whole list,
+// since a cache-miss compute makes real external network calls. hasReferral
+// IS wired here from GET /referral/paths (cheap, DB-only, no external I/O).
+// response_rate IS real (joined server-side from company_response_rates).
+function mapResearchToVaultEntry(
+  r: CompanyResearch,
+  i: number,
+  referredCompanies: Set<string>,
+): VaultEntry {
   const hasData = Boolean(r.overview || r.tech_stack.length || r.culture_signals.length);
   const responseRate = r.response_rate != null ? Math.round(r.response_rate * 100) : 0;
   const kv: [string, string, string][] = [];
@@ -43,7 +66,7 @@ function mapResearchToVaultEntry(r: CompanyResearch, i: number): VaultEntry {
     signal: hasData ? "medium" : "weak",
     urgency: "medium" as const,
     responseRate,
-    hasReferral: false,
+    hasReferral: referredCompanies.has(normalizeCompanyName(r.company_name)),
     fundingRecent: false,
     kv,
   };
@@ -66,9 +89,44 @@ export default function ResearchVault({
 
   useEffect(() => {
     if (!apiLive) return;
-    apiListCompanyResearch()
-      .then((rows) => setVault(rows.map(mapResearchToVaultEntry)))
+    let cancelled = false;
+    Promise.all([
+      apiListCompanyResearch(),
+      apiListReferralPaths().catch(() => [] as ReferralPathResponse[]),
+    ])
+      .then(([rows, paths]) => {
+        if (cancelled) return;
+        const referredCompanies = new Set(
+          paths.map((p) => normalizeCompanyName(p.connection_company ?? "")).filter(Boolean),
+        );
+        const mapped = rows.map((r, i) => mapResearchToVaultEntry(r, i, referredCompanies));
+        setVault(mapped);
+
+        // Secondary, non-blocking enrichment: real urgency/funding-recency per
+        // company. Cache hits (the common case — IPS scoring already computes
+        // urgency for any company with a job in the queue) return instantly;
+        // a rare cache miss makes free external calls (no LLM cost), so this
+        // never blocks the initial render and each failure is isolated.
+        Promise.allSettled(
+          rows.slice(0, 40).map((r) => apiGetCompanyUrgency(r.company_name)),
+        ).then((results) => {
+          if (cancelled) return;
+          setVault((prev) =>
+            (prev ?? mapped).map((entry, i) => {
+              const res = results[i];
+              if (!res || res.status !== "fulfilled") return entry;
+              const u = res.value;
+              return {
+                ...entry,
+                urgency: toVaultUrgency(u.urgency_label),
+                fundingRecent: isFundingRecent(u.breakdown.funding_date),
+              };
+            }),
+          );
+        });
+      })
       .catch(() => setVault([]));
+    return () => { cancelled = true; };
   }, [apiLive]);
 
   const source = apiLive ? (vault ?? []) : VAULT;

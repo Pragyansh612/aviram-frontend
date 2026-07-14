@@ -114,6 +114,39 @@ export function EmptyState({ children }: { children: React.ReactNode }) {
   return <p className="empty-line">{children}</p>;
 }
 
+// ---------- loading skeleton ----------
+export function Skel({ width = "100%", height = 14, style }: { width?: number | string; height?: number | string; style?: React.CSSProperties }) {
+  return <span className="skel-block" style={{ width, height, ...style }} />;
+}
+
+/** Full dashboard shell shape, shown only during the very first data load. */
+export function DashboardShellSkeleton() {
+  return (
+    <div className="app">
+      <div className="sidebar" aria-hidden="true">
+        <div style={{ padding: "20px 16px" }}>
+          <Skel width={90} height={20} style={{ marginBottom: 32 }} />
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skel key={i} height={30} style={{ marginBottom: 8, borderRadius: 8 }} />
+          ))}
+        </div>
+      </div>
+      <div className="main">
+        <div className="topbar2" aria-hidden="true">
+          <Skel width={160} height={16} />
+        </div>
+        <div className="page" aria-hidden="true">
+          <Skel width={220} height={26} style={{ marginBottom: 10 }} />
+          <Skel width={360} height={14} style={{ marginBottom: 28 }} />
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skel key={i} height={64} style={{ marginBottom: 10, borderRadius: 10 }} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PageHead({ eyebrow, title, sub, right }: { eyebrow?: React.ReactNode; title: string; sub?: string; right?: React.ReactNode }) {
   return (
     <div className="page-head">

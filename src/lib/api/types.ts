@@ -173,6 +173,60 @@ export type ReferralRequest = {
   draft_message?: string;
 };
 
+export type ReferralPathResponse = {
+  id: string;
+  job_id: string;
+  connection_id?: string | null;
+  connection_name: string;
+  connection_role?: string | null;
+  connection_company?: string | null;
+  path_type: string;
+  path_strength: number;
+  mutual_contact?: string | null;
+  notes?: string | null;
+  detected_at: string;
+};
+
+export type UrgencyBreakdown = {
+  funding_score: number;
+  velocity_score: number;
+  hn_score: number;
+  blog_score: number;
+  headcount_score: number;
+  funding_amount?: string | null;
+  funding_date?: string | null;
+  hn_month?: string | null;
+  jobs_current_month: number;
+  jobs_prior_month: number;
+};
+
+export type CompanyUrgencyResponse = {
+  company_name: string;
+  urgency_score: number;
+  urgency_label: string;
+  breakdown: UrgencyBreakdown;
+  computed_at: string;
+  expires_at: string;
+  is_fresh: boolean;
+};
+
+export type OutreachMessage = {
+  id?: string | null;
+  campaign_id: string;
+  contact_id?: string | null;
+  to_email: string;
+  to_name?: string | null;
+  subject: string;
+  body: string;
+  variant: string;
+  status: string;
+  copied_at?: string | null;
+  sent_at?: string | null;
+  replied_at?: string | null;
+  follow_up_after?: string | null;
+  created_at?: string | null;
+};
+
 export type OutreachCampaign = {
   id: string;
   name: string;

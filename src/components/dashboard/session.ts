@@ -357,9 +357,21 @@ export function recordLoginTime(): void {
   try { localStorage.setItem(LOGIN_TIME_KEY, String(Date.now())); } catch {}
 }
 
+/** Format elapsed milliseconds into a human-friendly "Xh Ym" string. */
+function formatDurationMs(elapsedMs: number): string {
+  const totalMin = Math.floor(Math.max(0, elapsedMs) / 60_000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h === 0) return m <= 1 ? "a few minutes" : `${m}m`;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
 /**
  * Format elapsed milliseconds into a human-friendly "Xh Ym" string.
  * Returns null if there is no stored timestamp (first ever login).
+ * Client-local fallback only — used in demo mode or when the backend's
+ * real previous_login_at isn't available. See getActiveForDurationSince
+ * for the real, server-anchored computation.
  */
 export function getActiveForDuration(): string | null {
   try {
@@ -367,13 +379,20 @@ export function getActiveForDuration(): string | null {
     if (!raw) return null;
     const prev = parseInt(raw, 10);
     if (isNaN(prev)) return null;
-    const elapsed = Math.max(0, Date.now() - prev);
-    const totalMin = Math.floor(elapsed / 60_000);
-    const h = Math.floor(totalMin / 60);
-    const m = totalMin % 60;
-    if (h === 0) return m <= 1 ? "a few minutes" : `${m}m`;
-    return m === 0 ? `${h}h` : `${h}h ${m}m`;
+    return formatDurationMs(Date.now() - prev);
   } catch { return null; }
+}
+
+/**
+ * Real "active for" duration computed from the backend's
+ * profiles.previous_login_at (returned as `since` by GET /dashboard/brief),
+ * not a client-local localStorage timestamp — accurate across devices and
+ * browser data clears.
+ */
+export function getActiveForDurationSince(sinceIso: string): string | null {
+  const prev = new Date(sinceIso).getTime();
+  if (isNaN(prev)) return null;
+  return formatDurationMs(Date.now() - prev);
 }
 
 // ---- wake screen (post-login transition before entry sequence) ----

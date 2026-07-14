@@ -272,6 +272,29 @@ section { position: relative; }
 .topbar .spacer { flex: 1; }
 
 /* ============================================================
+   LOADING SKELETON
+   ============================================================ */
+.skel-block {
+  display: block;
+  border-radius: 6px;
+  background: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--ink-4) 14%, transparent) 30%,
+    color-mix(in srgb, var(--ink-4) 24%, transparent) 50%,
+    color-mix(in srgb, var(--ink-4) 14%, transparent) 70%
+  );
+  background-size: 200% 100%;
+  animation: skel-shimmer 1.6s ease-in-out infinite;
+}
+@keyframes skel-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skel-block { animation: none; opacity: 0.5; }
+}
+
+/* ============================================================
    SHARED BUTTONS (used by both landing + dashboard)
    ============================================================ */
 .btn {
@@ -1498,6 +1521,10 @@ section { position: relative; }
   .apps-row, .apps-colhead { grid-template-columns: 1.4fr auto auto; }
   .apps-row .ar-variant, .apps-colhead .h-variant,
   .apps-row .ar-ips,     .apps-colhead .h-ips { display: none; }
+  /* Grid tracks assume desktop width; below 860px let rows wrap instead of
+     squeezing 4-5 items into columns that no longer fit. */
+  .campaign-row { display: flex; flex-wrap: wrap; row-gap: 8px; }
+  .campaign-row > button { margin-left: auto; }
 }
 @media (max-width: 560px) {
   .container { padding: 0 18px; }

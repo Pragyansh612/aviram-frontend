@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Sidebar, MobileTabBar } from "./shared";
+import { Sidebar, MobileTabBar, DashboardShellSkeleton } from "./shared";
 import Entry from "./Entry";
 import DetailPanel from "./DetailPanel";
 import CampaignPanel from "./CampaignPanel";
@@ -71,7 +71,7 @@ function avatarInitial(): string {
 function DashboardShell() {
   const router = useRouter();
   const [page, setPage] = useState<PageId>("command");
-  const [theme, toggleTheme] = useTheme();
+  const [, toggleTheme] = useTheme();
   const { running, setRunning, apiLive } = useDashboard();
   const [opp, setOpp] = useState<Opp | null>(null);
   const [campaign, setCampaign] = useState<Campaign | null>(null);
@@ -182,6 +182,16 @@ function DashboardShell() {
   );
 }
 
+// Gates the real content behind the very first data load, so a page
+// refresh never briefly flashes fabricated demo data before apiLive
+// resolves (initialLoading never goes true again after the first cycle,
+// unlike `loading`, so this doesn't re-flash on the 30s background poll).
+function DashboardGate({ children }: { children: React.ReactNode }) {
+  const { initialLoading } = useDashboard();
+  if (initialLoading) return <DashboardShellSkeleton />;
+  return <>{children}</>;
+}
+
 export default function DashboardApp() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
@@ -219,10 +229,14 @@ export default function DashboardApp() {
 
   const inner = showWake ? (
     <WakeScreen onDone={() => setShowWake(false)} />
-  ) : stage === "entry" ? (
-    <Entry onEnter={finishBrief} goTo={goTo} firstTime={firstTime} />
   ) : (
-    <DashboardShell />
+    <DashboardGate>
+      {stage === "entry" ? (
+        <Entry onEnter={finishBrief} goTo={goTo} firstTime={firstTime} />
+      ) : (
+        <DashboardShell />
+      )}
+    </DashboardGate>
   );
 
   return (

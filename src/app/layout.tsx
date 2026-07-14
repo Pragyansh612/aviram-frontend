@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Instrument_Serif, Geist, Geist_Mono } from "next/font/google";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import "./globals.css";
 
 const instrumentSerif = Instrument_Serif({
@@ -47,7 +48,7 @@ export default function RootLayout({
       <body
         className={`${instrumentSerif.variable} ${geist.variable} ${geistMono.variable}`}
       >
-        {children}
+        <ErrorBoundary>{children}</ErrorBoundary>
       </body>
     </html>
   );

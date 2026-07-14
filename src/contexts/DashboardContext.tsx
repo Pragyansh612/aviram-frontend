@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -55,10 +56,16 @@ type AppRow = (typeof APPS)[number] & { job_id?: string };
 type DashboardState = {
   apiLive: boolean;
   loading: boolean;
+  // True only until the very first health-check + fetch cycle resolves —
+  // unlike `loading` (which flips true/false on every 30s poll), this never
+  // goes true again, so callers can gate the initial render without a
+  // full-page flicker on every background refresh.
+  initialLoading: boolean;
   opportunities: Opp[];
   timeline: TimelineGroup[];
   applications: AppRow[];
   briefStats: typeof BRIEF;
+  briefSince: string | null;
   userMeta: typeof USER;
   running: boolean;
   refresh: () => Promise<void>;
@@ -103,12 +110,23 @@ function mapApiApplication(
 export function DashboardProvider({ children }: { children: ReactNode }) {
   const [apiLive, setApiLive] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const hasLoadedOnce = useRef(false);
   const [opportunities, setOpportunities] = useState<Opp[]>(OPPS);
   const [timeline, setTimeline] = useState<TimelineGroup[]>(TIMELINE as TimelineGroup[]);
   const [applications, setApplications] = useState<AppRow[]>(APPS);
   const [briefStats, setBriefStats] = useState(BRIEF);
+  const [briefSince, setBriefSince] = useState<string | null>(null);
   const [userMeta, setUserMeta] = useState(USER);
   const [running, setRunningState] = useState(true);
+
+  const finishLoading = useCallback(() => {
+    setLoading(false);
+    if (!hasLoadedOnce.current) {
+      hasLoadedOnce.current = true;
+      setInitialLoading(false);
+    }
+  }, []);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -122,9 +140,10 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       setTimeline(TIMELINE as TimelineGroup[]);
       setApplications(APPS);
       setBriefStats(BRIEF);
+      setBriefSince(null);
       setUserMeta(USER);
       setRunningState(true);
-      setLoading(false);
+      finishLoading();
       return;
     }
 
@@ -172,6 +191,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           referral: brief.referrals_surfaced,
           interview: brief.interviews_scheduled,
         }));
+        setBriefSince(brief.since ?? null);
       } else if (summary || queue) {
         setBriefStats((prev) => ({
           ...prev,
@@ -209,11 +229,12 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       setTimeline(TIMELINE as TimelineGroup[]);
       setApplications(APPS);
       setBriefStats(BRIEF);
+      setBriefSince(null);
       setUserMeta(USER);
     } finally {
-      setLoading(false);
+      finishLoading();
     }
-  }, []);
+  }, [finishLoading]);
 
   useEffect(() => {
     refresh();
@@ -277,10 +298,12 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const value = useMemo(() => ({
     apiLive,
     loading,
+    initialLoading,
     opportunities,
     timeline,
     applications,
     briefStats,
+    briefSince,
     userMeta,
     running,
     refresh,
@@ -288,8 +311,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     setRunning,
     fetchFilteredOpportunities,
   }), [
-    apiLive, loading, opportunities, timeline, applications,
-    briefStats, userMeta, running, refresh, applyToJob, setRunning,
+    apiLive, loading, initialLoading, opportunities, timeline, applications,
+    briefStats, briefSince, userMeta, running, refresh, applyToJob, setRunning,
     fetchFilteredOpportunities,
   ]);
 
@@ -306,10 +329,12 @@ export function useDashboard(): DashboardState {
     return {
       apiLive: false,
       loading: false,
+      initialLoading: false,
       opportunities: OPPS,
       timeline: TIMELINE as TimelineGroup[],
       applications: APPS,
       briefStats: BRIEF,
+      briefSince: null,
       userMeta: USER,
       running: true,
       refresh: async () => {},

@@ -5,7 +5,7 @@ import { PageHead, EmptyState } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 import { showToast } from "@/components/dashboard/Toast";
 import { useDashboard } from "@/contexts/DashboardContext";
-import { apiListReferralRequests, apiListOutreachCampaigns, apiCreateOutreachCampaign } from "@/lib/api";
+import { apiListReferralRequests, apiListOutreachCampaigns, apiCreateOutreachCampaign, apiUpdateReferralRequestStatus } from "@/lib/api";
 import type { ReferralRequest } from "@/lib/api";
 import type { Campaign } from "@/components/dashboard/CampaignPanel";
 
@@ -60,6 +60,7 @@ export default function Outreach({ openCampaign, selectedId, highlightDraftId }:
   const [drafts, setDrafts] = useState<Draft[]>(apiLive ? [] : OUTREACH.drafts);
   const [campaigns, setCampaigns] = useState<CampaignRow[]>(apiLive ? [] : OUTREACH.campaigns);
   const [highlightDraft, setHighlightDraft] = useState<string | null>(highlightDraftId ?? null);
+  const [sending, setSending] = useState<string | null>(null);
 
   useEffect(() => {
     if (!apiLive) {
@@ -78,6 +79,20 @@ export default function Outreach({ openCampaign, selectedId, highlightDraftId }:
       setCampaigns(camps.map(mapApiCampaign));
     });
   }, [apiLive]);
+
+  const handleSendIntro = async (draftId: string) => {
+    if (!apiLive) { showToast("Copy the draft and send manually in demo mode.", "warn"); return; }
+    setSending(draftId);
+    try {
+      await apiUpdateReferralRequestStatus(draftId, "sent");
+      setDrafts((prev) => prev.filter((d) => d.id !== draftId));
+      showToast("Marked as sent.", "success");
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Couldn't update — try again.", "warn");
+    } finally {
+      setSending(null);
+    }
+  };
 
   const handleNewCampaign = async () => {
     if (!apiLive) { showToast(STUB_MSG); return; }
@@ -140,14 +155,16 @@ export default function Outreach({ openCampaign, selectedId, highlightDraftId }:
             <button
               type="button"
               className="btn btn-ghost btn-sm"
-              onClick={() => showToast(apiLive ? "Send is queued for your approval in the next release." : "Copy the draft and send manually in demo mode.", "warn")}
+              disabled={sending === d.id}
+              onClick={() => void handleSendIntro(d.id)}
             >
-              Send intro <span className="arr" style={arrIcon}><Icon name="send" /></span>
+              {sending === d.id ? "Marking sent…" : "Send intro"} <span className="arr" style={arrIcon}><Icon name="send" /></span>
             </button>
             <button
               type="button"
               className="btn btn-quiet btn-sm"
-              onClick={() => showToast(STUB_MSG)}
+              disabled
+              title="Coming soon — inline draft editing isn't built yet."
             >
               Edit
             </button>
