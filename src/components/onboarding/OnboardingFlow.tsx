@@ -14,14 +14,12 @@ import {
   type StoredProfile,
 } from "@/components/dashboard/session";
 import TagAutocomplete from "@/components/ui/TagAutocomplete";
+import LocationPreferenceSelector from "@/components/ui/LocationPreferenceSelector";
 import {
-  JOB_LOCATIONS,
   JOB_ROLE_GROUPS,
   JOB_ROLES,
-  LOCATION_GROUPS,
   parseTags,
   POPULAR_JOB_ROLES,
-  POPULAR_LOCATIONS,
   TECH_COMPANIES,
 } from "@/lib/job-catalog";
 import {
@@ -359,15 +357,22 @@ export default function OnboardingFlow() {
               </label>
               <label className="auth-field">
                 <span className="auth-label">Locations</span>
-                <TagAutocomplete
+                <LocationPreferenceSelector
+                  id="onboarding-locations"
                   value={profile.locations}
                   onChange={(locations) => setProfile({ ...profile, locations })}
-                  options={JOB_LOCATIONS}
-                  browse={{ groups: LOCATION_GROUPS, popular: POPULAR_LOCATIONS }}
-                  separator=" · "
-                  placeholder="e.g. Remote · Bengaluru"
-                  required
-                  hint="Remote, hybrid, and cities worldwide"
+                />
+              </label>
+              <label className="auth-field">
+                <span className="auth-label">Exclude companies</span>
+                <TagAutocomplete
+                  value={rules.blockedCompanies}
+                  onChange={(blockedCompanies) => setRules({ ...rules, blockedCompanies })}
+                  options={TECH_COMPANIES}
+                  separator=", "
+                  placeholder="Optional — companies Aviram should never surface or apply to"
+                  allowCustom
+                  hint="You can add more later in Settings"
                 />
               </label>
               <label className="auth-field">
@@ -391,18 +396,11 @@ export default function OnboardingFlow() {
                 <span className="auth-label">Daily application limit</span>
                 <input className="auth-input" type="number" min={1} max={50} required value={rules.dailyLimit} onChange={(e) => setRules({ ...rules, dailyLimit: e.target.value })} />
               </label>
-              <label className="auth-field">
-                <span className="auth-label">Blocked companies</span>
-                <TagAutocomplete
-                  value={rules.blockedCompanies}
-                  onChange={(blockedCompanies) => setRules({ ...rules, blockedCompanies })}
-                  options={TECH_COMPANIES}
-                  separator=", "
-                  placeholder="Optional — type a company name"
-                  allowCustom
-                  hint="Companies Aviram will never apply to on your behalf"
-                />
-              </label>
+              <p className="onboard-lede" style={{ marginTop: -8, marginBottom: 0 }}>
+                {rules.blockedCompanies
+                  ? <>Excluding: <b>{rules.blockedCompanies}</b> — set in the previous step, editable anytime in Settings.</>
+                  : "No excluded companies set — you can add some in the previous step or later in Settings."}
+              </p>
               <label className="auth-field">
                 <span className="auth-label">Quality score minimum</span>
                 <input className="auth-input" required value={rules.qualityMinimum} onChange={(e) => setRules({ ...rules, qualityMinimum: e.target.value })} />

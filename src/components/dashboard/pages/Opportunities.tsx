@@ -111,6 +111,9 @@ function OppRow({
         <div className="or-role">
           {o.role}{" "}
           <span style={{ color: "var(--ink-3)", fontWeight: 400, fontFamily: "var(--mono)", fontSize: 12 }}>· {o.company}</span>
+          {o.careerPageSource && (
+            <span className="direct-badge" title="Aviram monitors this company's career page directly">Direct</span>
+          )}
           {o.urgent && !isSkipped && !isApplied ? <Urgent /> : null}
         </div>
         <div className="or-sub">{o.stage} · {o.platform} · {o.age} old · {o.location}</div>

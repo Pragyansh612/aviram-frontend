@@ -10,6 +10,9 @@ import type {
   CalibrationStatus,
   CompanyResearch,
   ComputeIPSResponse,
+  DiscoverySummary,
+  JobStats,
+  ScrapeRun,
   FullSessionResponse,
   InterviewQuestion,
   InterviewSession,
@@ -226,6 +229,24 @@ export async function apiGetExperimentVariants(roleCategory?: string): Promise<{
 
 export async function apiListCompanyResearch(limit = 100): Promise<CompanyResearch[]> {
   return apiFetch<CompanyResearch[]>(`/companies/research?limit=${limit}`);
+}
+
+// ── Discovery (Part 3/4, 2026-07-15) ───────────────────────────────────────────
+
+export async function apiGetJobStats(): Promise<JobStats> {
+  return apiFetch<JobStats>("/jobs/stats");
+}
+
+export async function apiGetScrapeRuns(): Promise<ScrapeRun[]> {
+  return apiFetch<ScrapeRun[]>("/jobs/scrape/runs");
+}
+
+export async function apiGetDiscoverySummary(): Promise<DiscoverySummary> {
+  return apiFetch<DiscoverySummary>("/jobs/discovery/summary");
+}
+
+export async function apiTriggerCareerPageScrape(): Promise<{ message: string }> {
+  return apiFetch("/jobs/scrape/career-pages", { method: "POST" });
 }
 
 export async function apiGetActiveResume(): Promise<ActiveResume> {

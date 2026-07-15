@@ -28,13 +28,18 @@ import {
   apiSyncGithubNetwork,
   apiGetNetworkProfile,
   apiGetConnectionsBySource,
+  apiGetJobStats,
+  apiGetScrapeRuns,
+  apiGetDiscoverySummary,
+  apiTriggerCareerPageScrape,
 } from "@/lib/api";
-import type { LinkedInConnectionItem } from "@/lib/api";
+import type { LinkedInConnectionItem, JobStats, ScrapeRun, DiscoverySummary } from "@/lib/api";
 import { PageHead, useMissions } from "@/components/dashboard/shared";
 import { Icon } from "@/components/dashboard/icons";
 import { showToast } from "@/components/dashboard/Toast";
 import { useDashboard } from "@/contexts/DashboardContext";
 import TagAutocomplete from "@/components/ui/TagAutocomplete";
+import LocationPreferenceSelector from "@/components/ui/LocationPreferenceSelector";
 import {
   INDUSTRIES,
   INDUSTRY_GROUPS,
@@ -192,6 +197,34 @@ function PrefRow({
   return <EditableRow label={label} value={value} onChange={onChange} />;
 }
 
+const PLATFORM_LABELS: Record<string, string> = {
+  greenhouse: "Greenhouse",
+  lever: "Lever",
+  ashby: "Ashby",
+  career_page: "Company career pages",
+  indeed: "Indeed",
+  linkedin: "LinkedIn",
+  wellfound: "Wellfound",
+  internshala: "Internshala",
+  hackernews: "Hacker News",
+};
+
+function platformLabel(platform: string): string {
+  return PLATFORM_LABELS[platform] ?? (platform.charAt(0).toUpperCase() + platform.slice(1));
+}
+
+function timeAgo(iso: string | null): string {
+  if (!iso) return "never";
+  const diff = Date.now() - new Date(iso).getTime();
+  if (isNaN(diff)) return "—";
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
 const DEFAULT_CONNS: Record<string, boolean> = {
   Greenhouse: true,
   Ashby: true,
@@ -216,6 +249,36 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
     githubAt: string | null;
     githubCount: number;
   } | null>(null);
+
+  const [jobStats, setJobStats] = useState<JobStats | null>(null);
+  const [scrapeRuns, setScrapeRuns] = useState<ScrapeRun[]>([]);
+  const [discovery, setDiscovery] = useState<DiscoverySummary | null>(null);
+  const [refreshingScrape, setRefreshingScrape] = useState(false);
+
+  const refreshDiscoveryData = () => {
+    if (!apiLive) return;
+    Promise.all([
+      apiGetJobStats().catch(() => null),
+      apiGetScrapeRuns().catch(() => []),
+      apiGetDiscoverySummary().catch(() => null),
+    ]).then(([stats, runs, disc]) => {
+      setJobStats(stats);
+      setScrapeRuns(runs);
+      setDiscovery(disc);
+    });
+  };
+
+  const handleRefreshScrape = async () => {
+    setRefreshingScrape(true);
+    try {
+      await apiTriggerCareerPageScrape();
+      showToast("Career-page scrape triggered — this runs in the background, check back in a few minutes", "success");
+    } catch {
+      showToast("Couldn't trigger a refresh right now — try again shortly", "warn");
+    } finally {
+      setRefreshingScrape(false);
+    }
+  };
 
   const refreshNetworkStatus = () => {
     if (!apiLive) return;
@@ -292,6 +355,11 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
 
   useEffect(() => {
     refreshNetworkStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiLive]);
+
+  useEffect(() => {
+    refreshDiscoveryData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiLive]);
 
@@ -497,14 +565,27 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
         </SettingsSection>
 
         <SettingsSection icon="target" title="Job Preferences" sub="roles · locations · missions">
-          {(Object.keys(prefs) as (keyof typeof prefs)[]).map((k) => (
-            <PrefRow
-              key={k}
-              label={k}
-              value={prefs[k]}
-              onChange={(v) => setPrefs((p) => ({ ...p, [k]: v }))}
-            />
-          ))}
+          {(Object.keys(prefs) as (keyof typeof prefs)[]).map((k) =>
+            k === "Locations" ? (
+              <div className="srow srow-tag" key={k}>
+                <div className="sl"><div className="k">{k}</div></div>
+                <div className="sv-tag-wrap">
+                  <LocationPreferenceSelector
+                    id="settings-locations"
+                    value={prefs.Locations}
+                    onChange={(v) => setPrefs((p) => ({ ...p, Locations: v }))}
+                  />
+                </div>
+              </div>
+            ) : (
+              <PrefRow
+                key={k}
+                label={k}
+                value={prefs[k]}
+                onChange={(v) => setPrefs((p) => ({ ...p, [k]: v }))}
+              />
+            ),
+          )}
           <div className="dp-sec" style={{ marginTop: 20, marginBottom: 10 }}>Active missions</div>
           {missions.map((m) => (
             <div className="srow mission-srow" key={m.id}>
@@ -520,6 +601,89 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
           <div className="ss-save-row">
             <button className="btn btn-primary btn-sm" onClick={() => handleSave("Preferences")}>Save changes</button>
           </div>
+        </SettingsSection>
+
+        <SettingsSection
+          icon="search"
+          title="Discovery"
+          sub={discovery ? `${discovery.total_companies_tracked} companies tracked` : "career-page coverage"}
+        >
+          {!apiLive ? (
+            <div className="srow"><div className="sl"><div className="d">Sign in to see live discovery stats.</div></div></div>
+          ) : (
+            <>
+              <div className="srow" style={{ flexDirection: "column", alignItems: "flex-start", gap: 10 }}>
+                <div className="sl">
+                  <div className="k">Active sources</div>
+                  <div className="d">Where Aviram currently pulls jobs from, by volume</div>
+                </div>
+                {jobStats?.platforms?.length ? (
+                  <div className="conn-grid">
+                    {jobStats.platforms.map((p) => (
+                      <div className="conn-card on" key={p.platform}>
+                        <span className="cdot" />
+                        <div className="conn-info">
+                          <div className="cn">{platformLabel(p.platform)}</div>
+                          <div className="cs on">{p.count} active job{p.count === 1 ? "" : "s"}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="d">No source breakdown yet — trigger a scrape below.</div>
+                )}
+              </div>
+
+              <div className="srow" style={{ flexDirection: "column", alignItems: "flex-start", gap: 8, marginTop: 16 }}>
+                <div className="sl">
+                  <div className="k">Last scrape results</div>
+                </div>
+                {scrapeRuns.length ? (
+                  <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 6 }}>
+                    {scrapeRuns.slice(0, 6).map((r) => (
+                      <div key={r.id} className="d" style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+                        <span>{platformLabel(r.platform)} · {r.status}</span>
+                        <span style={{ color: "var(--ink-4)" }}>
+                          {r.jobs_new} new · {r.jobs_found} found · {timeAgo(r.finished_at ?? r.started_at)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="d">No scrape runs recorded yet.</div>
+                )}
+                <button
+                  type="button"
+                  className="btn btn-quiet btn-sm"
+                  onClick={handleRefreshScrape}
+                  disabled={refreshingScrape}
+                  style={{ marginTop: 4 }}
+                >
+                  {refreshingScrape ? "Triggering…" : "Refresh now"}
+                </button>
+              </div>
+
+              {discovery && discovery.discovered_this_week > 0 && (
+                <div className="srow" style={{ flexDirection: "column", alignItems: "flex-start", gap: 8, marginTop: 16 }}>
+                  <div className="sl">
+                    <div className="k">
+                      Aviram has discovered {discovery.discovered_this_week} new compan{discovery.discovered_this_week === 1 ? "y" : "ies"} this week that match your preferences
+                    </div>
+                  </div>
+                  <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 6 }}>
+                    {discovery.recent_discoveries.slice(0, 10).map((c) => (
+                      <div key={c.id} className="d" style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+                        <span>{c.name}{c.domain ? ` · ${c.domain}` : ""}</span>
+                        <span style={{ color: "var(--ink-4)" }}>
+                          {c.status === "approved" ? "Added to scrape rotation" : "Pending review"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </SettingsSection>
 
         <SettingsSection icon="sliders" title="Auto-Apply Rules" sub="applied every run">

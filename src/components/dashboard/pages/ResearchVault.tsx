@@ -68,6 +68,7 @@ function mapResearchToVaultEntry(
     responseRate,
     hasReferral: referredCompanies.has(normalizeCompanyName(r.company_name)),
     fundingRecent: false,
+    directSource: r.direct_source,
     kv,
   };
 }
@@ -129,7 +130,7 @@ export default function ResearchVault({
     return () => { cancelled = true; };
   }, [apiLive]);
 
-  const source = apiLive ? (vault ?? []) : VAULT;
+  const source: VaultEntry[] = apiLive ? (vault ?? []) : VAULT;
 
   const list = source.filter((v) => {
     if (!(v.name + " " + v.tagline).toLowerCase().includes(q.toLowerCase())) return false;
@@ -199,7 +200,12 @@ export default function ResearchVault({
             >
               <span className="ds-logo">{v.logo}</span>
               <div className="ds-l">
-                <div className="ds-name">{v.name}</div>
+                <div className="ds-name">
+                  {v.name}
+                  {v.directSource && (
+                    <span className="direct-badge" title="Aviram monitors this company's career page directly">Direct</span>
+                  )}
+                </div>
                 <div className="ds-tagline">{v.tagline}</div>
               </div>
               <div className="ds-sig">

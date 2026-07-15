@@ -79,6 +79,8 @@ export type IPSJob = {
     company_rate: number | null;
   };
   user_history?: UserHistory | null;
+  career_page_source?: boolean;
+  apply_strategy?: string | null;
 };
 
 export type ApplyQueueResponse = {
@@ -430,6 +432,45 @@ export type CompanyResearch = {
   researched_at: string | null;
   response_rate: number | null;
   application_count: number | null;
+  direct_source: boolean;
+};
+
+export type DiscoveredCompany = {
+  id: string;
+  name: string;
+  domain: string | null;
+  discovery_source: string;
+  status: string;
+  geography: string | null;
+  discovery_date: string;
+};
+
+export type DiscoverySummary = {
+  total_companies_tracked: number;
+  discovered_this_week: number;
+  recent_discoveries: DiscoveredCompany[];
+};
+
+export type PlatformSummaryEntry = { platform: string; count: number };
+
+export type JobStats = {
+  total_jobs: number;
+  active_jobs: number;
+  internships: number;
+  total: number;
+  platforms: PlatformSummaryEntry[];
+};
+
+export type ScrapeRun = {
+  id: string;
+  platform: string;
+  status: string;
+  jobs_found: number;
+  jobs_new: number;
+  jobs_updated: number;
+  error_message: string | null;
+  started_at: string;
+  finished_at: string | null;
 };
 
 export type PlatformCredential = {
@@ -510,6 +551,7 @@ export function mapIpsJobToOpp(job: IPSJob, index: number): Opp {
     skipped: false,
     skipReason: "",
     userHistoryDisplay: job.user_history?.display ?? null,
+    careerPageSource: job.career_page_source ?? false,
   } as Opp;
 }
 

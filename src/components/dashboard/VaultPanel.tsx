@@ -3,7 +3,9 @@ import Link from "next/link";
 import { Icon } from "./icons";
 import type { VAULT } from "./data";
 
-export type VaultEntry = (typeof VAULT)[number];
+export type VaultEntry = (typeof VAULT)[number] & {
+  directSource?: boolean;
+};
 
 export default function VaultPanel({ entry, onClose }: { entry: VaultEntry; onClose: () => void }) {
   return (
@@ -12,7 +14,12 @@ export default function VaultPanel({ entry, onClose }: { entry: VaultEntry; onCl
       <aside className="detail-panel">
         <div className="detail-head">
           <div className="dh-l">
-            <div className="dh-role">{entry.name}</div>
+            <div className="dh-role">
+              {entry.name}
+              {entry.directSource && (
+                <span className="direct-badge" title="Aviram monitors this company's career page directly">Direct source</span>
+              )}
+            </div>
             <div className="dh-sub">{entry.tagline}</div>
           </div>
           <span className={"signal-pill " + entry.signal} style={{ flexShrink: 0 }}>

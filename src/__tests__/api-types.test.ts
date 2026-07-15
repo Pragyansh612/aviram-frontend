@@ -67,6 +67,17 @@ describe("mapIpsJobToOpp", () => {
     expect(typeof opp.age).toBe("string");
     expect(opp.age.length).toBeGreaterThan(0);
   });
+
+  it("passes through career_page_source=true (Direct badge source)", () => {
+    const direct: IPSJob = { ...sampleJob, career_page_source: true };
+    const opp = mapIpsJobToOpp(direct, 0);
+    expect(opp.careerPageSource).toBe(true);
+  });
+
+  it("defaults careerPageSource to false when field is absent", () => {
+    const opp = mapIpsJobToOpp(sampleJob, 0);
+    expect(opp.careerPageSource).toBe(false);
+  });
 });
 
 // ── mapApplicationStatus ──────────────────────────────────────────────────────
