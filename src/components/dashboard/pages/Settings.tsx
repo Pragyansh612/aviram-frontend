@@ -347,6 +347,7 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
   const archetype = apiLive ? userMeta.archetype : USER.archetype;
 
   const handleSave = async (section: string) => {
+    let backendFailed = false;
     if (section === "Profile") {
       const stored = getStoredProfile();
       saveStoredProfile({
@@ -366,7 +367,7 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
           github_url: profile.GitHub.startsWith("http") ? profile.GitHub : profile.GitHub ? `https://${profile.GitHub}` : null,
           website_url: profile.Portfolio.startsWith("http") ? profile.Portfolio : profile.Portfolio ? `https://${profile.Portfolio}` : null,
         });
-      } catch { /* local save still works */ }
+      } catch { backendFailed = true; }
     }
     if (section === "Preferences") {
       saveStoredPrefs(prefs);
@@ -381,7 +382,7 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
           })(),
           remote_preference: prefs["Remote preference"].toLowerCase().includes("remote") ? "remote" : "any",
         });
-      } catch { /* local */ }
+      } catch { backendFailed = true; }
     }
     if (section === "Auto-apply rules") {
       saveStoredRules({
@@ -399,9 +400,13 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
           quality_min: rules["Quality score minimum"].toLowerCase() === "high" ? 80 : 60,
           company_blocklist: parseTags(rules["Blocked companies"]),
         });
-      } catch { /* local */ }
+      } catch { backendFailed = true; }
     }
-    showToast(`${section} saved successfully`, "success");
+    if (backendFailed) {
+      showToast(`${section} saved locally, but syncing to your account failed — try again`, "warn");
+    } else {
+      showToast(`${section} saved successfully`, "success");
+    }
   };
 
   const handleBriefVariant = (v: "letter" | "terminal") => {
