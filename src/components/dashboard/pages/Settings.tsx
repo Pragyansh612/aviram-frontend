@@ -226,11 +226,11 @@ function timeAgo(iso: string | null): string {
 }
 
 const DEFAULT_CONNS: Record<string, boolean> = {
-  Greenhouse: true,
-  Ashby: true,
-  Lever: true,
+  Greenhouse: false,
+  Ashby: false,
+  Lever: false,
   Workday: false,
-  LinkedIn: true,
+  LinkedIn: false,
   Wellfound: false,
 };
 
@@ -340,10 +340,14 @@ export default function Settings({ running, toggleRunning }: { running: boolean;
     setBriefVariant(getBriefVariant());
     apiListCredentials()
       .then((creds) => {
-        if (!creds?.length) return;
+        // Always derive connection state from the real response — including
+        // when it's empty — rather than leaving stale hardcoded defaults in
+        // place. A brand-new user with zero saved credentials must see every
+        // platform as not-connected, not a fabricated "Connected" state.
         setConns((prev) => {
           const next = { ...prev };
-          for (const c of creds) {
+          for (const key of Object.keys(next)) next[key] = false;
+          for (const c of creds ?? []) {
             const key = Object.keys(next).find((k) => k.toLowerCase() === c.platform);
             if (key) next[key] = true;
           }
