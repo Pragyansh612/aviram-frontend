@@ -30,6 +30,8 @@ import {
   apiCompleteOnboarding,
   apiImportLinkedInConnections,
   apiSyncGithubNetwork,
+  apiGetCalibration,
+  mapCalibration,
   ApiError,
 } from "@/lib/api";
 import type { LinkedInConnectionItem } from "@/lib/api";
@@ -62,6 +64,33 @@ function splitCsvLine(line: string): string[] {
   }
   out.push(cur);
   return out;
+}
+
+// Backend only returns the archetype key (e.g. "mid_backend") plus a short
+// priors description (e.g. "2–5 yrs backend") — this maps the key to the
+// human-readable title shown in the reveal card. Keep in sync with
+// classify_archetype() in cold_start_service.py.
+const ARCHETYPE_TITLES: Record<string, string> = {
+  student_no_experience: "Student / New Grad",
+  junior_backend: "Junior Backend Engineer",
+  mid_backend: "Mid-level Backend Engineer",
+  senior_backend: "Senior Backend Engineer",
+  junior_frontend: "Junior Frontend Engineer",
+  mid_frontend: "Mid-level Frontend Engineer",
+  senior_frontend: "Senior Frontend Engineer",
+  junior_fullstack: "Junior Full-Stack Engineer",
+  mid_fullstack: "Mid-level Full-Stack Engineer",
+  senior_fullstack: "Senior Full-Stack Engineer",
+  junior_ml_data: "Junior ML / Data Engineer",
+  mid_ml_data: "Mid-level ML / Data Engineer",
+  senior_ml_data: "Senior ML / Data Engineer",
+  devops_cloud: "DevOps / Cloud Engineer",
+  mobile_dev: "Mobile Engineer",
+  generic: "Generalist Profile",
+};
+
+function archetypeTitle(archetype: string): string {
+  return ARCHETYPE_TITLES[archetype] ?? archetype;
 }
 
 function parseLinkedInConnectionsCsv(text: string): LinkedInConnectionItem[] {
@@ -105,6 +134,18 @@ export default function OnboardingFlow() {
   const [resumeName, setResumeName] = useState<string | null>(null);
   const resumeInputRef = useRef<HTMLInputElement>(null);
   const [hydrated, setHydrated] = useState(false);
+  // Populated from GET /profile/me/calibration right after resume upload —
+  // the backend classifies the archetype synchronously during upload
+  // (resume_service.py calls ColdStartService.classify_and_store before
+  // returning), so it's real by the time the user reaches the reveal step.
+  // Falls back to the generic archetype's copy if the fetch fails or the
+  // user skips ahead before it resolves.
+  const [calibration, setCalibration] = useState<{
+    archetype: string;
+    archetypeLabel?: string;
+    count: number;
+    target: number;
+  } | null>(null);
   const [rules, setRules] = useState({
     ipsThreshold: "70",
     dailyLimit: "20",
@@ -266,6 +307,19 @@ export default function OnboardingFlow() {
       await apiUploadResume(file);
     } catch {
       // local filename still shown; upload retries after onboarding
+      return;
+    }
+    try {
+      const cal = await apiGetCalibration();
+      const mapped = mapCalibration(cal);
+      setCalibration({
+        archetype: mapped.archetype,
+        archetypeLabel: mapped.archetypeLabel,
+        count: mapped.count,
+        target: mapped.target,
+      });
+    } catch {
+      // archetype reveal step falls back to generic copy
     }
   };
 
@@ -478,10 +532,12 @@ export default function OnboardingFlow() {
           <div className="onboard-body onboard-reveal">
             <h1 className="onboard-title serif">Based on your resume</h1>
             <div className="archetype-card">
-              <div className="arch-tag mono">mid_backend</div>
-              <p className="arch-name serif">Mid-level Backend Engineer</p>
+              <div className="arch-tag mono">{calibration?.archetype ?? "generic"}</div>
+              <p className="arch-name serif">{archetypeTitle(calibration?.archetype ?? "generic")}</p>
               <p className="arch-desc">
-                Aviram will weight opportunities toward backend roles at Series A–C companies, remote-first teams, and stacks matching Python, distributed systems, and PostgreSQL. FAANG and enterprise roles will rank lower unless IPS is exceptional.
+                {calibration
+                  ? <>Aviram classified your resume as <b>{calibration.archetypeLabel ?? archetypeTitle(calibration.archetype)}</b>. IPS scoring uses this archetype&apos;s response-rate priors — companies, stages, and stacks that have historically converted for similar profiles rank higher — until your own outcome data takes over.</>
+                  : "Aviram couldn't classify your resume yet — scores will use generic priors until you upload one from Settings."}
               </p>
             </div>
           </div>
@@ -491,11 +547,11 @@ export default function OnboardingFlow() {
           <div className="onboard-body onboard-reveal">
             <h1 className="onboard-title serif">Calibration period</h1>
             <p className="onboard-lede">
-              Your first <b>25 applications</b> calibrate Aviram to your profile specifically — your response rates, resume variants, and timing patterns. Until then, IPS scores use the mid_backend baseline.
+              Your first <b>{calibration?.target ?? 25} applications</b> calibrate Aviram to your profile specifically — your response rates, resume variants, and timing patterns. Until then, IPS scores use the {calibration?.archetype ?? "generic"} baseline.
             </p>
             <div className="calib-preview">
-              <div className="arch"><span className="tag">[mid_backend]</span><span className="frac">0 / 25</span></div>
-              <div className="bar"><i style={{ width: "0%" }} /></div>
+              <div className="arch"><span className="tag">[{calibration?.archetype ?? "generic"}]</span><span className="frac">{calibration?.count ?? 0} / {calibration?.target ?? 25}</span></div>
+              <div className="bar"><i style={{ width: `${Math.min(100, Math.round(((calibration?.count ?? 0) / (calibration?.target ?? 25)) * 100))}%` }} /></div>
             </div>
             {finishError && (
               <p className="onboard-error" role="alert" style={{ color: "var(--rejected, #9A4A33)", marginTop: 14 }}>
